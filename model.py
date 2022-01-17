@@ -33,7 +33,7 @@ class PGNN_layer(nn.Module):
             # graph.apply_edges(lambda edges: {"message": edges.data['sp_dist'] * edges.src['feat']})
             graph.apply_edges(fn.v_mul_e('feat', 'sp_dist', 'u_message'))
             # graph.apply_edges(fn.v_mul_e('feat', 'sp_dist', 'v_message'))
-            graph.apply_edges(lambda edges: {'new_feat': torch.cat([edges.dst['feat'], edges.data['u_message']],
+            graph.apply_edges(lambda edges: {'new_feat': torch.cat([edges.data['u_message'], edges.dst['feat']],
                                                                    axis=1)})
             messages = graph.edata.pop('new_feat')
             messages = messages[anchor_eid, :].reshape(dists_argmax.shape[0], dists_argmax.shape[1], messages.shape[-1])
