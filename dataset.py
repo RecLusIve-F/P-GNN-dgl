@@ -175,7 +175,7 @@ def graph_load_batch(min_num_nodes=20, max_num_nodes=1000, name='ENZYMES', node_
     print('Loading graph dataset: ' + str(name))
     G = nx.Graph()
     # load data
-    path = f'./{name}/'
+    path = f'./data/{name}/'
     data_adj = np.loadtxt(path + name + '_A.txt', delimiter=',').astype(int)
     if node_attributes:
         data_node_att = np.loadtxt(path + name + '_node_attributes.txt', delimiter=',')
