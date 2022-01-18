@@ -1,4 +1,6 @@
+import time
 import torch
+import numpy as np
 import torch.nn as nn
 from torch.nn import init
 import dgl.function as fn
@@ -14,7 +16,9 @@ class PGNN_layer(nn.Module):
         if self.dist_trainable:
             self.dist_compute = Nonlinear(1, output_dim, 1)
 
-        self.linear_hidden = nn.Linear(input_dim * 2, output_dim)
+        # self.linear_hidden = nn.Linear(input_dim*2, output_dim)
+        self.linear_hidden_u = nn.Linear(input_dim, output_dim)
+        self.linear_hidden_v = nn.Linear(input_dim, output_dim)
         self.linear_out_position = nn.Linear(output_dim, 1)
         self.act = nn.ReLU()
 
@@ -25,24 +29,36 @@ class PGNN_layer(nn.Module):
                     m.bias.data = init.constant_(m.bias.data, 0.0)
 
     def forward(self, graph, feature, anchor_eid, dists_max, dists_argmax):
+        # t1 = time.time()
         with graph.local_scope():
             if self.dist_trainable:
                 dists_max = self.dist_compute(dists_max.unsqueeze(-1)).squeeze()
                 graph.edata['sp_dist'] = dists_max
-            graph.ndata['feat'] = feature
-            # graph.apply_edges(lambda edges: {"message": edges.data['sp_dist'] * edges.src['feat']})
-            graph.apply_edges(fn.v_mul_e('feat', 'sp_dist', 'u_message'))
-            # graph.apply_edges(fn.v_mul_e('feat', 'sp_dist', 'v_message'))
-            graph.apply_edges(lambda edges: {'new_feat': torch.cat([edges.data['u_message'], edges.dst['feat']],
-                                                                   axis=1)})
-            messages = graph.edata.pop('new_feat')
-            messages = messages[anchor_eid, :].reshape(dists_argmax.shape[0], dists_argmax.shape[1], messages.shape[-1])
 
-            messages = self.linear_hidden(messages).squeeze()
+            u_feat = self.linear_hidden_u(feature)
+            v_feat = self.linear_hidden_v(feature)
+            graph.srcdata.update({'u_feat': u_feat})
+            graph.dstdata.update({'v_feat': v_feat})
+
+            graph.apply_edges(fn.u_mul_e('u_feat', 'sp_dist', 'u_message'))
+            graph.apply_edges(fn.v_add_e('v_feat', 'u_message', 'message'))
+
+            # graph.ndata['feat'] = feature
+            # graph.apply_edges(fn.u_mul_e('feat', 'sp_dist', 'u_message'))
+            # graph.apply_edges(lambda edges: {'message': torch.cat([edges.data['u_message'], edges.dst['feat']], axis=1)})
+            messages = graph.edata.pop('message')
+            messages = torch.index_select(messages, 0, torch.from_numpy(np.array(anchor_eid)).to(feature.device)).\
+                reshape(dists_argmax.shape[0], dists_argmax.shape[1], messages.shape[-1])
+
+            # messages = self.linear_hidden(messages).squeeze()
             messages = self.act(messages)  # n*m*d
 
             out_position = self.linear_out_position(messages).squeeze(-1)  # n*m_out
             out_structure = torch.mean(messages, dim=1)  # n*d
+
+            # t2 = time.time()
+
+            # print(f'{t2- t1:.8f}')
 
             return out_position, out_structure
 

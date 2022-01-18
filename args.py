@@ -8,13 +8,13 @@ def make_args():
                         help='comment')
     parser.add_argument('--task', dest='task', default='link', type=str,
                         help='link; link_pair')
-    parser.add_argument('--model', dest='model', default='GCN', type=str,
-                        help='model class name. E.g., GCN, PGNN, ...')
     parser.add_argument('--dataset', dest='dataset', default='All', type=str,
                         help='All; Cora; grid; communities; ppi')
     parser.add_argument('--gpu', dest='gpu', action='store_true',
                         help='whether use gpu')
     parser.add_argument('--cache_no', dest='cache', action='store_false',
+                        help='whether use cache')
+    parser.add_argument('--cache', dest='cache', action='store_true',
                         help='whether use cache')
     parser.add_argument('--cpu', dest='gpu', action='store_false',
                         help='whether use cpu')
@@ -55,8 +55,8 @@ def make_args():
     parser.add_argument('--repeat_num', dest='repeat_num', default=2, type=int)  # 10
     parser.add_argument('--epoch_log', dest='epoch_log', default=10, type=int)
 
-    parser.set_defaults(gpu=False, task='link', model='PGNN', dataset='grid',
-                        cache=False, rm_feature=False,
+    parser.set_defaults(gpu=False, task='link_pair', model='PGNN', dataset='communities',
+                        cache=False, rm_feature=True,
                         permute=True, feature_pre=True, dropout=True,
                         approximate=-1, normalize_adj=False)
     args = parser.parse_args()
