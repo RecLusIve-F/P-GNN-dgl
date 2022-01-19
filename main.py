@@ -167,11 +167,11 @@ def main():
 
                 loss_train, auc_train, loss_val, auc_val, loss_test, auc_test = eval_model(data_list, model, loss_func,
                                                                                            out_act, device)
+                if auc_val > best_auc_val:
+                    best_auc_val = auc_val
+                    best_auc_test = auc_test
 
                 if epoch % args.epoch_log == 0:
-                    if auc_val > best_auc_val:
-                        best_auc_val = auc_val
-                        best_auc_test = auc_test
                     print(repeat, epoch, 'Loss {:.4f}'.format(loss_train), 'Train AUC: {:.4f}'.format(auc_train),
                           'Val AUC: {:.4f}'.format(auc_val), 'Test AUC: {:.4f}'.format(auc_test),
                           'Best Val AUC: {:.4f}'.format(best_auc_val), 'Best Test AUC: {:.4f}'.format(best_auc_test))
