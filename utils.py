@@ -204,7 +204,7 @@ def precompute_dist_data(edge_index, num_nodes, approximate=0):
     return dists_array
 
 
-def construct_sp_graph(feature, dists_max, dists_argmax):
+def construct_sp_graph(feature, dists_max, dists_argmax, device):
     src = []
     dst = []
     real_src = []
@@ -219,9 +219,9 @@ def construct_sp_graph(feature, dists_max, dists_argmax):
         edge_weight.extend(list(dists_max[i, tmp_dists_argmax_idx]))
     eid_dict = {(u, v): i for i, (u, v) in enumerate(list(zip(dst, src)))}
     anchor_eid = [eid_dict.get((u, v)) for u, v in list(zip(real_dst, real_src))]
-    g = dgl.graph((dst, src))
-    g.edata['sp_dist'] = torch.tensor(edge_weight).float()
-    g.ndata['feat'] = torch.tensor(feature).float()
+    g = dgl.graph((dst, src)).to(device)
+    g.edata['sp_dist'] = torch.tensor(edge_weight).float().to(device)
+    g.ndata['feat'] = torch.tensor(feature).float().to(device)
 
     return g, anchor_eid
 
@@ -262,5 +262,5 @@ def preselect_anchor(data, layer_num=1, anchor_num=32, anchor_size_num=4, device
 
     anchor_set_id = get_random_anchorset(data['num_nodes'], c=1)
     data['dists_max'], data['dists_argmax'] = get_dist_max(anchor_set_id, data['dists'], device)
-    data['graph'], data['anchor_eid'] = construct_sp_graph(data['feature'], data['dists_max'], data['dists_argmax'])
+    data['graph'], data['anchor_eid'] = construct_sp_graph(data['feature'], data['dists_max'], data['dists_argmax'], device)
     return data
