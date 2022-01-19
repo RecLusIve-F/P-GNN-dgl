@@ -261,6 +261,6 @@ def preselect_anchor(data, layer_num=1, anchor_num=32, anchor_size_num=4, device
     data['anchor_set_indicator'] = np.zeros((layer_num, anchor_num, data['num_nodes']), dtype=int)
 
     anchor_set_id = get_random_anchorset(data['num_nodes'], c=1)
-    data['dists_max'], data['dists_argmax'] = get_dist_max(anchor_set_id, data['dists'], device)
+    data['dists_max'], data['dists_argmax'] = get_dist_max(anchor_set_id, data['dists'], 'cpu')
     data['graph'], data['anchor_eid'] = construct_sp_graph(data['feature'], data['dists_max'], data['dists_argmax'], device)
     return data
