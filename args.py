@@ -4,8 +4,6 @@ from argparse import ArgumentParser
 def make_args():
     parser = ArgumentParser()
     # general
-    parser.add_argument('--comment', dest='comment', default='0', type=str,
-                        help='comment')
     parser.add_argument('--task', dest='task', default='link', type=str,
                         help='link; link_pair')
     parser.add_argument('--dataset', dest='dataset', default='All', type=str,
@@ -54,6 +52,6 @@ def make_args():
     parser.add_argument('--epoch_log', dest='epoch_log', default=10, type=int)
 
     parser.set_defaults(gpu=False, task='link_pair', dataset='communities', cache=False, rm_feature=True, permute=True,
-                        feature_pre=True, dropout=True, approximate=-1, normalize_adj=False)
+                        feature_pre=True, dropout=True, approximate=-1)
     args = parser.parse_args()
     return args
