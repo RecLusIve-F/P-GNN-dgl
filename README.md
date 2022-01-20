@@ -24,7 +24,7 @@ scikit-learn 1.0.2
 --task                str        Task type.                          Default is 'link_pair'.
 --dataset             str        The graph dataset name.             Default is 'communities'.
 --gpu(--cpu)          bool       Whether use gpu.                    Default is False.
---cache(_no)           bool       Whether use cache.                  Default is False.
+--cache(_no)          bool       Whether use cache.                  Default is False.
 --cuda                str        GPU index.                          Defaule is '0'.
 ```
 
