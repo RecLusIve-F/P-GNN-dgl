@@ -47,17 +47,13 @@ def make_args():
     parser.add_argument('--hidden_dim', dest='hidden_dim', default=32, type=int)
     parser.add_argument('--output_dim', dest='output_dim', default=32, type=int)
     parser.add_argument('--anchor_num', dest='anchor_num', default=64, type=int)
-    parser.add_argument('--normalize_adj', dest='normalize_adj', action='store_true',
-                        help='whether normalize_adj')
 
     parser.add_argument('--lr', dest='lr', default=1e-2, type=float)
     parser.add_argument('--epoch_num', dest='epoch_num', default=2001, type=int)
     parser.add_argument('--repeat_num', dest='repeat_num', default=2, type=int)  # 10
     parser.add_argument('--epoch_log', dest='epoch_log', default=10, type=int)
 
-    parser.set_defaults(gpu=False, task='link_pair', model='PGNN', dataset='communities',
-                        cache=False, rm_feature=True,
-                        permute=True, feature_pre=True, dropout=True,
-                        approximate=-1, normalize_adj=False)
+    parser.set_defaults(gpu=False, task='link_pair', dataset='communities', cache=False, rm_feature=True, permute=True,
+                        feature_pre=True, dropout=True, approximate=-1, normalize_adj=False)
     args = parser.parse_args()
     return args

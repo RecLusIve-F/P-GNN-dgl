@@ -10,9 +10,6 @@ from dataset import get_dataset
 from utils import preselect_anchor
 from sklearn.metrics import roc_auc_score
 
-import warnings
-warnings.filterwarnings('ignore')
-
 
 def get_loss(p, data, out, loss_func, device, out_act=None):
     edge_mask = np.concatenate((data[f'mask_link_positive_{p}'], data[f'mask_link_negative_{p}']), axis=-1)
@@ -38,10 +35,9 @@ def get_loss(p, data, out, loss_func, device, out_act=None):
 def train_model(data_list, model, args, loss_func, optimizer, device):
     for idx, data in enumerate(data_list):
         if args.permute:
-            data = preselect_anchor(data, layer_num=args.layer_num, anchor_num=args.anchor_num,
-                                    device=device)
+            data = preselect_anchor(data, layer_num=args.layer_num, anchor_num=args.anchor_num, device=device)
         out = model(data)
-        # get_link_mask(data, resplit=False)  # resample negative links
+        # get_link_mask(data, re_split=False)  # resample negative links
 
         loss = get_loss('train', data, out, loss_func, device)
 
@@ -115,8 +111,8 @@ def main():
         datasets_name = [args.dataset]
 
     for dataset_name in datasets_name:
-        print(f'Dataset: {dataset_name} Learning Type: {"Inductive" if args.rm_feature else "Transductive"} '
-              f'Task: {args.task} Model layer num: {args.layer_num}layer Approximate: '
+        print(f'Dataset: {dataset_name}, Learning Type: {"Inductive" if args.rm_feature else "Transductive"}, '
+              f'Task: {args.task}, Model layer num: {args.layer_num}-layer, Shortest Path Approximate: '
               f'{"Exact" if args.approximate == -1 else "Fast"}')
         results = []
 
@@ -135,15 +131,13 @@ def main():
             # data
             for i, data in enumerate(data_list):
                 data = preselect_anchor(data, layer_num=args.layer_num, anchor_num=args.anchor_num, device=device)
-                # data = data.to(device)
                 data_list[i] = data
 
             # model
             input_dim = num_features
             output_dim = args.output_dim
-            model = PGNN(input_dim=input_dim, feature_dim=args.feature_dim,
-                         hidden_dim=args.hidden_dim, output_dim=output_dim,
-                         feature_pre=args.feature_pre, layer_num=args.layer_num,
+            model = PGNN(input_dim=input_dim, feature_dim=args.feature_dim, hidden_dim=args.hidden_dim,
+                         output_dim=output_dim, feature_pre=args.feature_pre, layer_num=args.layer_num,
                          dropout=args.dropout).to(device)
 
             # loss
@@ -190,7 +184,7 @@ def main():
         print(results_mean, results_std)
 
         with open(f'results/{dataset_name}_{"Inductive" if args.rm_feature else "Transductive"}_{args.task}_'
-                  f'{args.layer_num}layer_approximate{args.approximate}', 'w') as f:
+                  f'{args.layer_num}-layer_approximate{args.approximate}', 'w') as f:
             f.write('{}, {}\n'.format(results_mean, results_std))
 
 

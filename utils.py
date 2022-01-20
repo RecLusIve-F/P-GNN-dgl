@@ -77,25 +77,6 @@ def resample_edge_mask_link_negative(data, is_approximate=False):
     return data
 
 
-# def resample_edge_mask_link_negative(data, is_approximate=False):
-#     sample_function = [get_edge_mask_link_negative, get_edge_mask_link_negative_approximate][is_approximate]
-#     tmp_links = data['mask_link_positive']
-#
-#     data['mask_link_negative_train'] = sample_function(data['mask_link_positive_train'], num_nodes=data['num_nodes'],
-#                                                        num_negative_edges=data['mask_link_positive_train'].shape[1])
-#
-#     # tmp_links = np.concatenate([tmp_links, data['mask_link_negative_train']], axis=1)
-#
-#     data['mask_link_negative_val'] = sample_function(tmp_links, num_nodes=data['num_nodes'],
-#                                                      num_negative_edges=data['mask_link_positive_val'].shape[1])
-#
-#     # tmp_links = np.concatenate([tmp_links, data['mask_link_negative_val']], axis=1)
-#
-#     data['mask_link_negative_test'] = sample_function(tmp_links, num_nodes=data['num_nodes'],
-#                                                       num_negative_edges=data['mask_link_positive_test'].shape[1])
-#     return data
-
-
 # each node at least remain in the new graph
 def split_edges(edges, remove_ratio, connected=False):
     e = edges.shape[1]
@@ -171,8 +152,9 @@ def all_pairs_shortest_path_length_parallel(graph, cutoff=None, num_workers=4):
     pool = mp.Pool(processes=num_workers)
     results = [pool.apply_async(single_source_shortest_path_length_range,
                                 args=(
-                                graph, nodes[int(len(nodes) / num_workers * i):int(len(nodes) / num_workers * (i + 1))],
-                                cutoff)) for i in range(num_workers)]
+                                    graph,
+                                    nodes[int(len(nodes) / num_workers * i):int(len(nodes) / num_workers * (i + 1))],
+                                    cutoff)) for i in range(num_workers)]
     output = [p.get() for p in results]
     dists_dict = merge_dicts(output)
     pool.close()
@@ -262,5 +244,6 @@ def preselect_anchor(data, layer_num=1, anchor_num=32, anchor_size_num=4, device
 
     anchor_set_id = get_random_anchorset(data['num_nodes'], c=1)
     data['dists_max'], data['dists_argmax'] = get_dist_max(anchor_set_id, data['dists'], 'cpu')
-    data['graph'], data['anchor_eid'] = construct_sp_graph(data['feature'], data['dists_max'], data['dists_argmax'], device)
+    data['graph'], data['anchor_eid'] = construct_sp_graph(data['feature'], data['dists_max'], data['dists_argmax'],
+                                                           device)
     return data

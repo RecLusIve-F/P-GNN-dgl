@@ -50,7 +50,7 @@ def load_graphs(dataset_str):
                     graph.remove_edge(u, v)
                     graph.add_edge(u, x)
                     count += 1
-            # print('rewire:', count)
+            print('rewire:', count)
 
             n = graph.number_of_nodes()
             label = np.zeros((n, n), dtype=int)
@@ -125,7 +125,7 @@ def load_graphs(dataset_str):
 
     elif dataset_str == 'ppi':
         dataset_dir = 'data/ppi'
-        # print("Loading data...")
+        print("Loading data...")
         G = json_graph.node_link_graph(json.load(open(dataset_dir + "/ppi-G.json")))
         edge_labels_internal = json.load(open(dataset_dir + "/ppi-class_map.json"))
         edge_labels_internal = {int(i): l for i, l in edge_labels_internal.items()}
@@ -135,7 +135,7 @@ def load_graphs(dataset_str):
         if train_labels.ndim == 1:
             train_labels = np.expand_dims(train_labels, 1)
 
-        # print("Using only features..")
+        print("Using only features..")
         feats = np.load(dataset_dir + "/ppi-feats.npy")
         # Logistic gets thrown off by big counts, so log transform num comments and score
         feats[:, 0] = np.log(feats[:, 0] + 1.0)
@@ -206,7 +206,7 @@ def graph_load_batch(min_num_nodes=20, max_num_nodes=1000, name='ENZYMES', node_
         G_sub = G.subgraph(nodes)
         if graph_labels:
             G_sub.graph['label'] = data_graph_labels[i]
-        if G_sub.number_of_nodes() >= min_num_nodes and G_sub.number_of_nodes() <= max_num_nodes:
+        if min_num_nodes <= G_sub.number_of_nodes() <= max_num_nodes:
             graphs.append(G_sub)
             if G_sub.number_of_nodes() > max_nodes:
                 max_nodes = G_sub.number_of_nodes()
