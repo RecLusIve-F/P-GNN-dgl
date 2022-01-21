@@ -63,7 +63,7 @@ Training a P-GNN model on the default dataset with default options.
 python main.py
 ```
 
-Training a P-GNN model on the different dataset with default options.
+Training a P-GNN model on the different datasets with default options.
 
 ```bash
 # Communities transductive link prediction
