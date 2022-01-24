@@ -192,7 +192,7 @@ def preselect_all_anchor(data, args):
     anchor_set_ids = [get_random_anchor_set(data['num_nodes'], c=1) for _ in range(args.epoch_num)]
     pool = mp.Pool(processes=4)
     results = [pool.apply_async(construct_single_sp_graph, args=(
-        data, anchor_set_ids[int(len(anchor_set_ids) / 4 * i):int(len(anchor_set_ids) / 4 * (i + 1))], 'cpu')) for i in
+        data, anchor_set_ids[int(len(anchor_set_ids) / 4 * i):int(len(anchor_set_ids) / 4 * (i + 1))], 'cpu', )) for i in
                range(4)]
     output = [p.get() for p in results]
     graphs, anchor_eids, dists_max_list = merge_result(output)
