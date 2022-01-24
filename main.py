@@ -10,8 +10,6 @@ from dataset import get_dataset
 from sklearn.metrics import roc_auc_score
 from utils import preselect_all_anchor, preselect_single_anchor
 
-os.system("taskset -p 0xff %d" % os.getpid())
-
 
 def get_loss(p, data, out, loss_func, device, out_act=None):
     edge_mask = np.concatenate((data[f'mask_link_positive_{p}'], data[f'mask_link_negative_{p}']), axis=-1)
