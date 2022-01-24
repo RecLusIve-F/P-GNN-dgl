@@ -34,7 +34,9 @@ def get_loss(p, data, out, loss_func, device, out_act=None):
 
 def train_model(data_list, graphs, anchor_eids, dists_max_list, model, args, loss_func, optimizer, device):
     for idx, data in enumerate(data_list):
-        data['graph'], data['anchor_eid'], data['dists_max'] = graphs[idx], anchor_eids[idx], dists_max_list[idx]
+        data['graph'], data['anchor_eid'], data['dists_max'] = graphs[idx].to(device), anchor_eids[idx], dists_max_list[idx]
+        data['graph'].edata['sp_dist'] = data['graph'].edata['sp_dist'].to(device)
+        data['graph'].ndata['feat'] = data['graph'].ndata['feat'].to(device)
         out = model(data)
         # get_link_mask(data, re_split=False)  # resample negative links
 
@@ -133,12 +135,12 @@ def main():
             dists_max_list = []
             for i, data in enumerate(data_list):
                 if not args.permute:
-                    g, anchor_eid, dists_max = preselect_single_anchor(data, device)
+                    g, anchor_eid, dists_max = preselect_single_anchor(data)
                     g = g * args.epoch_num
                     anchor_eid = anchor_eid * args.epoch_num
                     dists_max = dists_max * args.epoch_num
                 else:
-                    g, anchor_eid, dists_max = preselect_all_anchor(data, args, device)
+                    g, anchor_eid, dists_max = preselect_all_anchor(data, args)
 
                 graphs.append(g)
                 anchor_eids.append(anchor_eid)

@@ -188,12 +188,11 @@ def merge_result(outputs):
     return graphs, anchor_eids, dists_max_list
 
 
-
-def preselect_all_anchor(data, args, device='cpu'):
+def preselect_all_anchor(data, args):
     anchor_set_ids = [get_random_anchor_set(data['num_nodes'], c=1) for _ in range(args.epoch_num)]
     pool = mp.Pool(processes=4)
     results = [pool.apply_async(construct_single_sp_graph, args=(
-    data, anchor_set_ids[int(len(anchor_set_ids) / 4 * i):int(len(anchor_set_ids) / 4 * (i + 1))], device)) for i in
+        data, anchor_set_ids[int(len(anchor_set_ids) / 4 * i):int(len(anchor_set_ids) / 4 * (i + 1))], 'cpu')) for i in
                range(4)]
     output = [p.get() for p in results]
     graphs, anchor_eids, dists_max_list = merge_result(output)
@@ -201,9 +200,9 @@ def preselect_all_anchor(data, args, device='cpu'):
     return graphs, anchor_eids, dists_max_list
 
 
-def preselect_single_anchor(data, device='cpu'):
+def preselect_single_anchor(data):
     anchor_set_id = [get_random_anchor_set(data['num_nodes'], c=1)]
-    graphs, anchor_eids, dists_max_list = construct_single_sp_graph(data, anchor_set_id, device)
+    graphs, anchor_eids, dists_max_list = construct_single_sp_graph(data, anchor_set_id, 'cpu')
 
     return graphs, anchor_eids, dists_max_list
 
@@ -275,4 +274,3 @@ def get_dist_max(anchor_set_id, dist, device):
         dist_max[:, i] = dist_max_temp
         dist_argmax[:, i] = temp_id[dist_argmax_temp]
     return dist_max, dist_argmax
-
