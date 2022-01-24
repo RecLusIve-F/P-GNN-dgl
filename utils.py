@@ -162,6 +162,52 @@ def all_pairs_shortest_path_length_parallel(graph, cutoff=None, num_workers=4):
     return dists_dict
 
 
+def construct_single_sp_graph(data, anchor_sets, device):
+    graphs = []
+    anchor_eids = []
+    dists_max_list = []
+    for anchor_set in anchor_sets:
+        dists_max, dists_argmax = get_dist_max(anchor_set, data['dists'], 'cpu')
+        g, anchor_eid = construct_sp_graph(data['feature'], dists_max, dists_argmax, device)
+        graphs.append(g)
+        anchor_eids.append(anchor_eid)
+        dists_max_list.append(dists_max)
+    return graphs, anchor_eids, dists_max_list
+
+
+def merge_result(outputs):
+    graphs = []
+    anchor_eids = []
+    dists_max_list = []
+
+    for g, anchor_eid, dists_max in outputs:
+        graphs.extend(g)
+        anchor_eids.extend(anchor_eid)
+        dists_max_list.extend(dists_max)
+
+    return graphs, anchor_eids, dists_max_list
+
+
+
+def preselect_all_anchor(data, args, device='cpu'):
+    anchor_set_ids = [get_random_anchor_set(data['num_nodes'], c=1) for _ in range(args.epoch_num)]
+    pool = mp.Pool(processes=4)
+    results = [pool.apply_async(construct_single_sp_graph, args=(
+    data, anchor_set_ids[int(len(anchor_set_ids) / 4 * i):int(len(anchor_set_ids) / 4 * (i + 1))], device)) for i in
+               range(4)]
+    output = [p.get() for p in results]
+    graphs, anchor_eids, dists_max_list = merge_result(output)
+
+    return graphs, anchor_eids, dists_max_list
+
+
+def preselect_single_anchor(data, device='cpu'):
+    anchor_set_id = [get_random_anchor_set(data['num_nodes'], c=1)]
+    graphs, anchor_eids, dists_max_list = construct_single_sp_graph(data, anchor_set_id, device)
+
+    return graphs, anchor_eids, dists_max_list
+
+
 def precompute_dist_data(edge_index, num_nodes, approximate=0):
     """
     Here dist is 1/real_dist, higher actually means closer, 0 means disconnected
@@ -208,7 +254,7 @@ def construct_sp_graph(feature, dists_max, dists_argmax, device):
     return g, anchor_eid
 
 
-def get_random_anchorset(n, c=0.5):
+def get_random_anchor_set(n, c=0.5):
     m = int(np.log2(n))
     copy = int(c * m)
     anchor_set_id = []
@@ -230,20 +276,3 @@ def get_dist_max(anchor_set_id, dist, device):
         dist_argmax[:, i] = temp_id[dist_argmax_temp]
     return dist_max, dist_argmax
 
-
-def preselect_anchor(data, layer_num=1, anchor_num=32, anchor_size_num=4, device='cpu'):
-    data['anchor_size_num'] = anchor_size_num
-    data['anchor_set'] = []
-    anchor_num_per_size = anchor_num // anchor_size_num
-    for i in range(anchor_size_num):
-        anchor_size = 2 ** (i + 1) - 1
-        anchors = np.random.choice(data['num_nodes'], size=(layer_num, anchor_num_per_size, anchor_size),
-                                   replace=True)
-        data['anchor_set'].append(anchors)
-    data['anchor_set_indicator'] = np.zeros((layer_num, anchor_num, data['num_nodes']), dtype=int)
-
-    anchor_set_id = get_random_anchorset(data['num_nodes'], c=1)
-    data['dists_max'], data['dists_argmax'] = get_dist_max(anchor_set_id, data['dists'], 'cpu')
-    data['graph'], data['anchor_eid'] = construct_sp_graph(data['feature'], data['dists_max'], data['dists_argmax'],
-                                                           device)
-    return data

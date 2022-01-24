@@ -7,8 +7,8 @@ from model import PGNN
 from random import shuffle
 from args import make_args
 from dataset import get_dataset
-from utils import preselect_anchor
 from sklearn.metrics import roc_auc_score
+from utils import preselect_all_anchor, preselect_single_anchor
 
 
 def get_loss(p, data, out, loss_func, device, out_act=None):
@@ -32,10 +32,9 @@ def get_loss(p, data, out, loss_func, device, out_act=None):
     return loss
 
 
-def train_model(data_list, model, args, loss_func, optimizer, device):
+def train_model(data_list, graphs, anchor_eids, dists_max_list, model, args, loss_func, optimizer, device):
     for idx, data in enumerate(data_list):
-        if args.permute:
-            data = preselect_anchor(data, layer_num=args.layer_num, anchor_num=args.anchor_num, device=device)
+        data['graph'], data['anchor_eid'], data['dists_max'] = graphs[idx], anchor_eids[idx], dists_max_list[idx]
         out = model(data)
         # get_link_mask(data, re_split=False)  # resample negative links
 
@@ -129,9 +128,21 @@ def main():
             print('Anchor num {}, Batch size {}'.format(args.anchor_num, args.batch_size))
 
             # data
+            graphs = []
+            anchor_eids = []
+            dists_max_list = []
             for i, data in enumerate(data_list):
-                data = preselect_anchor(data, layer_num=args.layer_num, anchor_num=args.anchor_num, device=device)
-                data_list[i] = data
+                if not args.permute:
+                    g, anchor_eid, dists_max = preselect_single_anchor(data, device)
+                    g = g * args.epoch_num
+                    anchor_eid = anchor_eid * args.epoch_num
+                    dists_max = dists_max * args.epoch_num
+                else:
+                    g, anchor_eid, dists_max = preselect_all_anchor(data, args, device)
+
+                graphs.append(g)
+                anchor_eids.append(anchor_eid)
+                dists_max_list.append(dists_max)
 
             # model
             input_dim = num_features
@@ -157,7 +168,12 @@ def main():
                 shuffle(data_list)
                 effective_len = len(data_list) // args.batch_size * len(data_list)
 
-                train_model(data_list[:effective_len], model, args, loss_func, optimizer, device)
+                g = [i[epoch] for i in graphs[:effective_len]]
+                anchor_eid = [i[epoch] for i in anchor_eids[:effective_len]]
+                dists_max = [i[epoch] for i in dists_max_list[:effective_len]]
+
+                train_model(data_list[:effective_len], g, anchor_eid, dists_max, model, args, loss_func, optimizer,
+                            device)
 
                 loss_train, auc_train, loss_val, auc_val, loss_test, auc_test = eval_model(data_list, model, loss_func,
                                                                                            out_act, device)

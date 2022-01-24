@@ -26,7 +26,7 @@ class PGNN_layer(nn.Module):
                 if m.bias is not None:
                     m.bias.data = init.constant_(m.bias.data, 0.0)
 
-    def forward(self, graph, feature, anchor_eid, dists_max, dists_argmax):
+    def forward(self, graph, feature, anchor_eid, dists_max):
         with graph.local_scope():
             if self.dist_trainable:
                 dists_max = self.dist_compute(dists_max.unsqueeze(-1)).squeeze()
@@ -42,7 +42,7 @@ class PGNN_layer(nn.Module):
 
             messages = graph.edata.pop('message')
             messages = torch.index_select(messages, 0, torch.from_numpy(np.array(anchor_eid)).to(feature.device)).\
-                reshape(dists_argmax.shape[0], dists_argmax.shape[1], messages.shape[-1])
+                reshape(dists_max.shape[0], dists_max.shape[1], messages.shape[-1])
 
             messages = self.act(messages)  # n*m*d
 
@@ -98,17 +98,17 @@ class PGNN(torch.nn.Module):
         graph = data['graph']
         if self.feature_pre:
             x = self.linear_pre(x)
-        x_position, x = self.conv_first(graph, x, data['anchor_eid'], data['dists_max'], data['dists_argmax'])
+        x_position, x = self.conv_first(graph, x, data['anchor_eid'], data['dists_max'])
         if self.layer_num == 1:
             return x_position
         # x = F.relu(x) # Note: optional!
         if self.dropout:
             x = F.dropout(x, training=self.training)
         for i in range(self.layer_num - 2):
-            _, x = self.conv_hidden[i](graph, x, data['anchor_eid'], data['dists_max'], data['dists_argmax'])
+            _, x = self.conv_hidden[i](graph, x, data['anchor_eid'], data['dists_max'])
             # x = F.relu(x) # Note: optional!
             if self.dropout:
                 x = F.dropout(x, training=self.training)
-        x_position, x = self.conv_out(graph, x, data['anchor_eid'], data['dists_max'], data['dists_argmax'])
+        x_position, x = self.conv_out(graph, x, data['anchor_eid'], data['dists_max'])
         x_position = F.normalize(x_position, p=2, dim=-1)
         return x_position
