@@ -247,8 +247,8 @@ def construct_sp_graph(feature, dists_max, dists_argmax, device):
     eid_dict = {(u, v): i for i, (u, v) in enumerate(list(zip(dst, src)))}
     anchor_eid = [eid_dict.get((u, v)) for u, v in list(zip(real_dst, real_src))]
     g = dgl.graph((dst, src)).to(device)
-    g.edata['sp_dist'] = torch.tensor(edge_weight).float().to(device)
-    g.ndata['feat'] = torch.tensor(feature).float().to(device)
+    g.edata['sp_dist'] = torch.from_numpy(np.array(edge_weight)).float().to(device)
+    g.ndata['feat'] = torch.from_numpy(np.array(feature)).float().to(device)
 
     return g, anchor_eid
 
