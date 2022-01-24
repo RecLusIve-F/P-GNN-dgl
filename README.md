@@ -1,4 +1,4 @@
-# DGL Implementations of MixHop
+# DGL Implementations of P-GNN
 
 This DGL example implements the GNN model proposed in the paper [Position-aware Graph Neural Networks](http://proceedings.mlr.press/v97/you19b/you19b.pdf). For the original implementation, see [here](https://github.com/JiaxuanYou/P-GNN).
 
