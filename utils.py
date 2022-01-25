@@ -195,10 +195,10 @@ def preselect_all_anchor(data, args):
     results = [pool.apply_async(construct_single_sp_graph, args=(
         data, anchor_set_ids[int(len(anchor_set_ids) / 4 * i):int(len(anchor_set_ids) / 4 * (i + 1))], )) for i in
                range(4)]
-    output = [p.get() for p in results]
-    graphs, anchor_eids, dists_max_list = merge_result(output)
     pool.close()
     pool.join()
+    output = [p.get() for p in results]
+    graphs, anchor_eids, dists_max_list = merge_result(output)
 
     return graphs, anchor_eids, dists_max_list
 
