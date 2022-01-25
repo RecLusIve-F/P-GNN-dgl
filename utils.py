@@ -151,11 +151,7 @@ def all_pairs_shortest_path_length_parallel(graph, cutoff=None, num_workers=4):
         num_workers = int(num_workers / 2)
 
     pool = mp.Pool(processes=num_workers)
-    results = [pool.apply_async(single_source_shortest_path_length_range,
-                                args=(
-                                    graph,
-                                    nodes[int(len(nodes) / num_workers * i):int(len(nodes) / num_workers * (i + 1))],
-                                    cutoff)) for i in range(num_workers)]
+    results = [pool.apply_async(single_source_shortest_path_length_range, args=(graph, nodes[int(len(nodes) / num_workers * i):int(len(nodes) / num_workers * (i + 1))], cutoff)) for i in range(num_workers)]
     output = [p.get() for p in results]
     dists_dict = merge_dicts(output)
     pool.close()
@@ -190,11 +186,10 @@ def merge_result(outputs):
 
 
 def preselect_all_anchor(data, args):
+    num_workers = 4
     anchor_set_ids = [get_random_anchor_set(data['num_nodes'], c=1) for _ in range(args.epoch_num)]
-    pool = mp.Pool(processes=4)
-    results = [pool.apply_async(construct_single_sp_graph, args=(
-        data, anchor_set_ids[int(len(anchor_set_ids) / 4 * i):int(len(anchor_set_ids) / 4 * (i + 1))], )) for i in
-               range(4)]
+    pool = mp.Pool(processes=num_workers)
+    results = [pool.apply_async(construct_single_sp_graph, args=(data, anchor_set_ids[int(len(anchor_set_ids) / num_workers * i):int(len(anchor_set_ids) / num_workers * (i + 1))], )) for i in range(num_workers)]
     pool.close()
     pool.join()
     output = [p.get() for p in results]
