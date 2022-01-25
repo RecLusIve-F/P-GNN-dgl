@@ -1,2 +1,4 @@
 .idea
-.idea/.gitignore
+datasets
+__pycache__
+result
