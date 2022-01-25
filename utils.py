@@ -196,6 +196,8 @@ def preselect_all_anchor(data, args):
                range(4)]
     output = [p.get() for p in results]
     graphs, anchor_eids, dists_max_list = merge_result(output)
+    pool.close()
+    pool.join()
 
     return graphs, anchor_eids, dists_max_list
 
