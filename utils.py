@@ -3,6 +3,7 @@ import torch
 import random
 import numpy as np
 import networkx as nx
+from tqdm.auto import tqdm
 import multiprocessing as mp
 
 
@@ -166,7 +167,7 @@ def construct_single_sp_graph(data, anchor_sets):
     graphs = []
     anchor_eids = []
     dists_max_list = []
-    for anchor_set in anchor_sets:
+    for anchor_set in tqdm(anchor_sets):
         dists_max, dists_argmax = get_dist_max(anchor_set, data['dists'], 'cpu')
         g, anchor_eid = construct_sp_graph(data['feature'], dists_max, dists_argmax)
         graphs.append(g)
