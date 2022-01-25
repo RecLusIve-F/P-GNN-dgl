@@ -243,12 +243,12 @@ def construct_sp_graph(feature, dists_max, dists_argmax, device):
         real_src.extend([i] * dists_argmax[i, :].shape[0])
         real_dst.extend(list(dists_argmax[i, :].numpy()))
         dst.extend(list(tmp_dists_argmax))
-        edge_weight.extend(list(dists_max[i, tmp_dists_argmax_idx]))
+        edge_weight.extend(dists_max[i, tmp_dists_argmax_idx].cpu().numpy().tolist())
     eid_dict = {(u, v): i for i, (u, v) in enumerate(list(zip(dst, src)))}
-    anchor_eid = [eid_dict.get((u, v)) for u, v in list(zip(real_dst, real_src))]
+    anchor_eid = [eid_dict.get((u, v)) for u, v in zip(real_dst, real_src)]
     g = dgl.graph((dst, src)).to(device)
-    g.edata['sp_dist'] = torch.from_numpy(np.array(edge_weight)).float().to(device)
-    g.ndata['feat'] = torch.from_numpy(np.array(feature)).float().to(device)
+    g.edata['sp_dist'] = torch.as_tensor(edge_weight, dtype=torch.float).to(device)
+    g.ndata['feat'] = torch.as_tensor(feature, dtype=torch.float).to(device)
 
     return g, anchor_eid
 
@@ -268,9 +268,9 @@ def get_dist_max(anchor_set_id, dist, device):
     dist_max = torch.zeros((dist.shape[0], len(anchor_set_id))).to(device)
     dist_argmax = torch.zeros((dist.shape[0], len(anchor_set_id))).long().to(device)
     for i in range(len(anchor_set_id)):
-        temp_id = torch.as_tensor(anchor_set_id[i], dtype=torch.long)
-        dist_temp = dist[:, temp_id]
+        temp_id = torch.as_tensor(anchor_set_id[i], dtype=torch.long).to(device)
+        dist_temp = torch.index_select(dist, 1, temp_id)
         dist_max_temp, dist_argmax_temp = torch.max(dist_temp, dim=-1)
         dist_max[:, i] = dist_max_temp
-        dist_argmax[:, i] = temp_id[dist_argmax_temp]
+        dist_argmax[:, i] = torch.index_select(temp_id, 0, dist_argmax_temp)
     return dist_max, dist_argmax

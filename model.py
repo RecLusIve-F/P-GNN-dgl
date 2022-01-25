@@ -1,5 +1,4 @@
 import torch
-import numpy as np
 import torch.nn as nn
 from torch.nn import init
 import dgl.function as fn
@@ -41,7 +40,7 @@ class PGNN_layer(nn.Module):
             graph.apply_edges(fn.v_add_e('v_feat', 'u_message', 'message'))
 
             messages = graph.edata.pop('message')
-            messages = torch.index_select(messages, 0, torch.from_numpy(np.array(anchor_eid)).to(feature.device)).\
+            messages = torch.index_select(messages, 0, torch.as_tensor(anchor_eid, dtype=torch.long).to(feature.device)).\
                 reshape(dists_max.shape[0], dists_max.shape[1], messages.shape[-1])
 
             messages = self.act(messages)  # n*m*d
