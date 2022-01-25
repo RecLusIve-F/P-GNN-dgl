@@ -162,13 +162,13 @@ def all_pairs_shortest_path_length_parallel(graph, cutoff=None, num_workers=4):
     return dists_dict
 
 
-def construct_single_sp_graph(data, anchor_sets, device):
+def construct_single_sp_graph(data, anchor_sets):
     graphs = []
     anchor_eids = []
     dists_max_list = []
     for anchor_set in anchor_sets:
         dists_max, dists_argmax = get_dist_max(anchor_set, data['dists'], 'cpu')
-        g, anchor_eid = construct_sp_graph(data['feature'], dists_max, dists_argmax, device)
+        g, anchor_eid = construct_sp_graph(data['feature'], dists_max, dists_argmax)
         graphs.append(g)
         anchor_eids.append(anchor_eid)
         dists_max_list.append(dists_max)
@@ -192,7 +192,7 @@ def preselect_all_anchor(data, args):
     anchor_set_ids = [get_random_anchor_set(data['num_nodes'], c=1) for _ in range(args.epoch_num)]
     pool = mp.Pool(processes=4)
     results = [pool.apply_async(construct_single_sp_graph, args=(
-        data, anchor_set_ids[int(len(anchor_set_ids) / 4 * i):int(len(anchor_set_ids) / 4 * (i + 1))], 'cpu', )) for i in
+        data, anchor_set_ids[int(len(anchor_set_ids) / 4 * i):int(len(anchor_set_ids) / 4 * (i + 1))], )) for i in
                range(4)]
     output = [p.get() for p in results]
     graphs, anchor_eids, dists_max_list = merge_result(output)
@@ -204,7 +204,7 @@ def preselect_all_anchor(data, args):
 
 def preselect_single_anchor(data):
     anchor_set_id = [get_random_anchor_set(data['num_nodes'], c=1)]
-    graphs, anchor_eids, dists_max_list = construct_single_sp_graph(data, anchor_set_id, 'cpu')
+    graphs, anchor_eids, dists_max_list = construct_single_sp_graph(data, anchor_set_id)
 
     return graphs, anchor_eids, dists_max_list
 
@@ -233,7 +233,7 @@ def precompute_dist_data(edge_index, num_nodes, approximate=0):
     return dists_array
 
 
-def construct_sp_graph(feature, dists_max, dists_argmax, device):
+def construct_sp_graph(feature, dists_max, dists_argmax):
     src = []
     dst = []
     real_src = []
@@ -245,12 +245,12 @@ def construct_sp_graph(feature, dists_max, dists_argmax, device):
         real_src.extend([i] * dists_argmax[i, :].shape[0])
         real_dst.extend(list(dists_argmax[i, :].numpy()))
         dst.extend(list(tmp_dists_argmax))
-        edge_weight.extend(dists_max[i, tmp_dists_argmax_idx].cpu().numpy().tolist())
+        edge_weight.extend(dists_max[i, tmp_dists_argmax_idx].numpy().tolist())
     eid_dict = {(u, v): i for i, (u, v) in enumerate(list(zip(dst, src)))}
     anchor_eid = [eid_dict.get((u, v)) for u, v in zip(real_dst, real_src)]
-    g = dgl.graph((dst, src)).to(device)
-    g.edata['sp_dist'] = torch.as_tensor(edge_weight, dtype=torch.float).to(device)
-    g.ndata['feat'] = torch.as_tensor(feature, dtype=torch.float).to(device)
+    g = dgl.graph((dst, src))
+    g.edata['sp_dist'] = torch.as_tensor(edge_weight, dtype=torch.float)
+    g.ndata['feat'] = torch.as_tensor(feature, dtype=torch.float)
 
     return g, anchor_eid
 
