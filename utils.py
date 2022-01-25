@@ -137,7 +137,7 @@ def merge_dicts(dicts):
 
 def single_source_shortest_path_length_range(graph, node_range, cutoff):
     dists_dict = {}
-    for node in node_range:
+    for node in tqdm(node_range):
         dists_dict[node] = nx.single_source_shortest_path_length(graph, node, cutoff)
     return dists_dict
 
