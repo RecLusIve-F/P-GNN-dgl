@@ -8,7 +8,7 @@ from random import shuffle
 from args import make_args
 from dataset import get_dataset
 from sklearn.metrics import roc_auc_score
-from utils import preselect_all_anchor, preselect_single_anchor
+from utils import preselect_all_anchor, preselect_single_anchor, exact_preselect_all_anchor
 
 
 def get_loss(p, data, out, loss_func, device, out_act=None):
@@ -140,7 +140,10 @@ def main():
                     anchor_eid = anchor_eid * args.epoch_num
                     dists_max = dists_max * args.epoch_num
                 else:
-                    g, anchor_eid, dists_max = preselect_all_anchor(data, args)
+                    if args.multi:
+                        g, anchor_eid, dists_max = preselect_all_anchor(data, args)
+                    else:
+                        g, anchor_eid, dists_max = exact_preselect_all_anchor(data, args)
 
                 graphs.append(g)
                 anchor_eids.append(anchor_eid)

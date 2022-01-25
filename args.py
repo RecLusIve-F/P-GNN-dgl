@@ -17,6 +17,8 @@ def make_args():
     parser.add_argument('--cpu', dest='gpu', action='store_false',
                         help='whether use cpu')
     parser.add_argument('--cuda', dest='cuda', default='0', type=str)
+    parser.add_argument('--multi', dest='multi', action='store_true')
+    parser.add_argument('--multi_no', dest='multi', action='store_false')
 
     # dataset
     parser.add_argument('--remove_link_ratio', dest='remove_link_ratio', default=0.2, type=float)
@@ -52,6 +54,6 @@ def make_args():
     parser.add_argument('--epoch_log', dest='epoch_log', default=10, type=int)
 
     parser.set_defaults(gpu=False, task='link_pair', dataset='communities', cache=False, rm_feature=True, permute=True,
-                        feature_pre=True, dropout=True, approximate=-1)
+                        feature_pre=True, dropout=True, approximate=-1, multi=True)
     args = parser.parse_args()
     return args

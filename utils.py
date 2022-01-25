@@ -203,6 +203,11 @@ def preselect_all_anchor(data, args):
     return graphs, anchor_eids, dists_max_list
 
 
+def exact_preselect_all_anchor(data, args):
+    anchor_set_ids = [get_random_anchor_set(data['num_nodes'], c=1) for _ in range(args.epoch_num)]
+    return construct_single_sp_graph(data, anchor_set_ids)
+
+
 def preselect_single_anchor(data):
     anchor_set_id = [get_random_anchor_set(data['num_nodes'], c=1)]
     graphs, anchor_eids, dists_max_list = construct_single_sp_graph(data, anchor_set_id)
