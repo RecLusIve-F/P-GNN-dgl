@@ -223,10 +223,9 @@ def construct_sp_graph(feature, dists_max, dists_argmax):
         edge_weight.extend(dists_max[i, tmp_dists_argmax_idx].tolist())
     eid_dict = {(u, v): i for i, (u, v) in enumerate(list(zip(dst, src)))}
     anchor_eid = [eid_dict.get((u, v)) for u, v in zip(real_dst, real_src)]
-    g = (dst, src)
-    # g = dgl.graph((dst, src))
-    # g.edata['sp_dist'] = torch.as_tensor(edge_weight, dtype=torch.float)
-    # g.ndata['feat'] = torch.as_tensor(feature, dtype=torch.float)
+    g = dgl.graph((dst, src))
+    g.edata['sp_dist'] = torch.as_tensor(edge_weight, dtype=torch.float)
+    g.ndata['feat'] = torch.as_tensor(feature, dtype=torch.float)
 
     return g, anchor_eid
 
