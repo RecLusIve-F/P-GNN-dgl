@@ -1,4 +1,5 @@
 import os
+import dgl
 import time
 import torch
 import numpy as np
@@ -6,9 +7,14 @@ import torch.nn as nn
 from model import PGNN
 from random import shuffle
 from args import make_args
+from tqdm.auto import tqdm
 from dataset import get_dataset
 from sklearn.metrics import roc_auc_score
 from utils import preselect_all_anchor, preselect_single_anchor, exact_preselect_all_anchor
+
+
+import warnings
+warnings.filterwarnings('ignore')
 
 
 def get_loss(p, data, out, loss_func, device, out_act=None):
@@ -32,11 +38,17 @@ def get_loss(p, data, out, loss_func, device, out_act=None):
     return loss
 
 
-def train_model(data_list, graphs, anchor_eids, dists_max_list, model, args, loss_func, optimizer, device):
-    for idx, data in enumerate(data_list):
-        data['graph'], data['anchor_eid'], data['dists_max'] = graphs[idx].to(device), anchor_eids[idx], dists_max_list[idx]
-        data['graph'].edata['sp_dist'] = data['graph'].edata['sp_dist'].to(device)
-        data['graph'].ndata['feat'] = data['graph'].ndata['feat'].to(device)
+def train_model(data_list, model, args, loss_func, optimizer, device, anchor_sets):
+    if anchor_sets is None:
+        graphs, anchor_eids, dists_max, edge_weights = preselect_all_anchor(data=None, args=args, data_list=data_list)
+    else:
+        graphs, anchor_eids, dists_max, edge_weights = anchor_sets
+    for idx, data in enumerate(tqdm(data_list, leave=False)):
+        g = dgl.graph(graphs[idx])
+        g.ndata['feat'] = torch.as_tensor(data['feature'], dtype=torch.float)
+        g.edata['sp_dist'] = torch.as_tensor(edge_weights[idx], dtype=torch.float)
+        data['graph'], data['anchor_eid'], data['dists_max'] = g.to(device), anchor_eids[idx], dists_max[idx]
+
         out = model(data)
         # get_link_mask(data, re_split=False)  # resample negative links
 
@@ -133,23 +145,29 @@ def main():
             graphs = []
             anchor_eids = []
             dists_max_list = []
-            for i, data in enumerate(data_list):
-                if not args.permute:
-                    g, anchor_eid, dists_max = preselect_single_anchor(data)
-                    g = g * args.epoch_num
-                    anchor_eid = anchor_eid * args.epoch_num
-                    dists_max = dists_max * args.epoch_num
-                else:
-                    if args.multi:
-                        g, anchor_eid, dists_max = preselect_all_anchor(data, args)
+            edge_weights = []
+            anchor_sets = None
+
+            if dataset_name not in ['ppi', 'protein']:
+                for i, data in enumerate(data_list):
+                    if not args.permute:
+                        g, anchor_eid, dists_max, edge_weight = preselect_single_anchor(data)
+                        g = g * args.epoch_num
+                        anchor_eid = anchor_eid * args.epoch_num
+                        dists_max = dists_max * args.epoch_num
+                        edge_weight = edge_weight * args.epoch_num
                     else:
-                        g, anchor_eid, dists_max = exact_preselect_all_anchor(data, args)
+                        if args.multi:
+                            g, anchor_eid, dists_max, edge_weight = preselect_all_anchor(data, args)
+                        else:
+                            g, anchor_eid, dists_max, edge_weight = exact_preselect_all_anchor(data, args)
 
-                graphs.append(g)
-                anchor_eids.append(anchor_eid)
-                dists_max_list.append(dists_max)
+                    graphs.append(g)
+                    anchor_eids.append(anchor_eid)
+                    dists_max_list.append(dists_max)
+                    edge_weights.append(edge_weight)
 
-            print('Preselect anchor_set Finished!')
+                print('Preselect anchor_set Finished!')
 
             # model
             input_dim = num_features
@@ -175,12 +193,15 @@ def main():
                 shuffle(data_list)
                 effective_len = len(data_list) // args.batch_size * len(data_list)
 
-                g = [i[epoch] for i in graphs[:effective_len]]
-                anchor_eid = [i[epoch] for i in anchor_eids[:effective_len]]
-                dists_max = [i[epoch] for i in dists_max_list[:effective_len]]
+                if dataset_name not in ['ppi', 'protein']:
+                    g = [i[epoch] for i in graphs[:effective_len]]
+                    anchor_eid = [i[epoch] for i in anchor_eids[:effective_len]]
+                    dists_max = [i[epoch] for i in dists_max_list[:effective_len]]
+                    edge_weight = [i[epoch] for i in edge_weights[:effective_len]]
+                    anchor_sets = [g, anchor_eid, dists_max, edge_weight]
+                    # print(anchor_sets)
 
-                train_model(data_list[:effective_len], g, anchor_eid, dists_max, model, args, loss_func, optimizer,
-                            device)
+                train_model(data_list[:effective_len], model, args, loss_func, optimizer, device, anchor_sets)
 
                 loss_train, auc_train, loss_val, auc_val, loss_test, auc_test = eval_model(data_list, model, loss_func,
                                                                                            out_act, device)

@@ -49,11 +49,11 @@ def make_args():
     parser.add_argument('--anchor_num', dest='anchor_num', default=64, type=int)
 
     parser.add_argument('--lr', dest='lr', default=1e-2, type=float)
-    parser.add_argument('--epoch_num', dest='epoch_num', default=2001, type=int)
-    parser.add_argument('--repeat_num', dest='repeat_num', default=2, type=int)  # 10
+    parser.add_argument('--epoch_num', dest='epoch_num', default=100, type=int)
+    parser.add_argument('--repeat_num', dest='repeat_num', default=1, type=int)  # 10
     parser.add_argument('--epoch_log', dest='epoch_log', default=10, type=int)
 
-    parser.set_defaults(gpu=False, task='link_pair', dataset='communities', cache=False, rm_feature=True, permute=True,
+    parser.set_defaults(gpu=False, task='link', dataset='grid', cache=False, rm_feature=True, permute=True,
                         feature_pre=True, dropout=True, approximate=-1, multi=True)
     args = parser.parse_args()
     return args

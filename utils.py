@@ -1,7 +1,5 @@
-import dgl
 import torch
 import random
-import resource
 import numpy as np
 import networkx as nx
 from tqdm.auto import tqdm
@@ -153,7 +151,9 @@ def all_pairs_shortest_path_length_parallel(graph, cutoff=None, num_workers=4):
         num_workers = int(num_workers / 2)
 
     pool = mp.Pool(processes=num_workers)
-    results = [pool.apply_async(single_source_shortest_path_length_range, args=(graph, nodes[int(len(nodes) / num_workers * i):int(len(nodes) / num_workers * (i + 1))], cutoff)) for i in range(num_workers)]
+    results = [pool.apply_async(single_source_shortest_path_length_range, args=(
+    graph, nodes[int(len(nodes) / num_workers * i):int(len(nodes) / num_workers * (i + 1))], cutoff)) for i in
+               range(num_workers)]
     output = [p.get() for p in results]
     dists_dict = merge_dicts(output)
     pool.close()
@@ -208,7 +208,22 @@ def get_dist_max(anchor_set_id, dist, device):
     return dist_max, dist_argmax
 
 
-def construct_sp_graph(feature, dists_max, dists_argmax):
+def merge_result(outputs):
+    graphs = []
+    anchor_eids = []
+    dists_max_list = []
+    edge_weights = []
+
+    for g, anchor_eid, dists_max, edge_weight in outputs:
+        graphs.extend(g)
+        anchor_eids.extend(anchor_eid)
+        dists_max_list.extend(dists_max)
+        edge_weights.extend(edge_weight)
+
+    return graphs, anchor_eids, dists_max_list, edge_weights
+
+
+def construct_sp_graph(dists_max, dists_argmax):
     src = []
     dst = []
     real_src = []
@@ -224,56 +239,60 @@ def construct_sp_graph(feature, dists_max, dists_argmax):
         edge_weight.extend(dists_max[i, tmp_dists_argmax_idx].tolist())
     eid_dict = {(u, v): i for i, (u, v) in enumerate(list(zip(dst, src)))}
     anchor_eid = [eid_dict.get((u, v)) for u, v in zip(real_dst, real_src)]
-    g = dgl.graph((dst, src))
-    g.edata['sp_dist'] = torch.as_tensor(edge_weight, dtype=torch.float)
-    g.ndata['feat'] = torch.as_tensor(feature, dtype=torch.float)
+    g = (dst, src)
+    # g = dgl.graph((dst, src))
+    # g.edata['sp_dist'] = torch.as_tensor(edge_weight, dtype=torch.float)
+    # g.ndata['feat'] = torch.as_tensor(feature, dtype=torch.float)
+    return g, anchor_eid, edge_weight
 
-    return g, anchor_eid
 
-
-def construct_single_sp_graph(data, anchor_sets):
+def construct_single_sp_graph(data, anchor_sets, data_list=None):
     graphs = []
     anchor_eids = []
     dists_max_list = []
-    for anchor_set in tqdm(anchor_sets, leave=False):
+    edge_weights = []
+    for i, anchor_set in enumerate(tqdm(anchor_sets, leave=False)):
+        if data is None:
+            data = data_list[i]
         dists_max, dists_argmax = get_dist_max(anchor_set, data['dists'], 'cpu')
-        g, anchor_eid = construct_sp_graph(data['feature'], dists_max, dists_argmax)
+        g, anchor_eid, edge_weight = construct_sp_graph(dists_max, dists_argmax)
         graphs.append(g)
         anchor_eids.append(anchor_eid)
         dists_max_list.append(dists_max)
-    return graphs, anchor_eids, dists_max_list
+        edge_weights.append(edge_weight)
+
+    return graphs, anchor_eids, dists_max_list, edge_weights
 
 
-def merge_result(outputs):
-    graphs = []
-    anchor_eids = []
-    dists_max_list = []
+def preselect_all_anchor(data, args, data_list=None, num_workers=4):
+    if data is None:
+        # if len(data_list) < 50:
+        #     num_workers = int(num_workers / 4)
+        # elif len(data_list) < 400:
+        #     num_workers = int(num_workers / 2)
+        pool = get_context("spawn").Pool(processes=num_workers)
+        anchor_set_ids = [get_random_anchor_set(data['num_nodes'], c=1) for data in data_list]
+        results = [pool.apply_async(construct_single_sp_graph, args=(None, anchor_set_ids[int(len(
+            anchor_set_ids) / num_workers * i):int(len(anchor_set_ids) / num_workers * (i + 1))], data_list[int(len(
+            anchor_set_ids) / num_workers * i):int(len(anchor_set_ids) / num_workers * (i + 1))]), ) for i in
+                   range(num_workers)]
+    else:
+        if args.epoch_num < 50:
+            num_workers = int(num_workers / 4)
+        elif args.epoch_num < 400:
+            num_workers = int(num_workers / 2)
+        pool = get_context("spawn").Pool(processes=num_workers)
+        anchor_set_ids = [get_random_anchor_set(data['num_nodes'], c=1) for _ in range(args.epoch_num)]
+        results = [pool.apply_async(construct_single_sp_graph, args=(data, anchor_set_ids[int(len(
+            anchor_set_ids) / num_workers * i):int(len(anchor_set_ids) / num_workers * (i + 1))],)) for i in
+                   range(num_workers)]
 
-    for g, anchor_eid, dists_max in outputs:
-        graphs.extend(g)
-        anchor_eids.extend(anchor_eid)
-        dists_max_list.extend(dists_max)
-
-    return graphs, anchor_eids, dists_max_list
-
-
-def preselect_all_anchor(data, args, num_workers=4):
-    torch.multiprocessing.set_sharing_strategy('file_system')
-    # rlimit = resource.getrlimit(resource.RLIMIT_NOFILE)
-    # resource.setrlimit(resource.RLIMIT_NOFILE, (2048, rlimit[1]))
-    if args.epoch_num < 50:
-        num_workers = int(num_workers / 4)
-    elif args.epoch_num < 400:
-        num_workers = int(num_workers / 2)
-    anchor_set_ids = [get_random_anchor_set(data['num_nodes'], c=1) for _ in range(args.epoch_num)]
-    pool = get_context("spawn").Pool(processes=num_workers)
-    results = [pool.apply_async(construct_single_sp_graph, args=(data, anchor_set_ids[int(len(anchor_set_ids) / num_workers * i):int(len(anchor_set_ids) / num_workers * (i + 1))], )) for i in range(num_workers)]
     output = [p.get() for p in results]
-    graphs, anchor_eids, dists_max_list = merge_result(output)
+    graphs, anchor_eids, dists_max_list, edge_weights = merge_result(output)
     pool.close()
     pool.join()
 
-    return graphs, anchor_eids, dists_max_list
+    return graphs, anchor_eids, dists_max_list, edge_weights
 
 
 def exact_preselect_all_anchor(data, args):
@@ -283,6 +302,6 @@ def exact_preselect_all_anchor(data, args):
 
 def preselect_single_anchor(data):
     anchor_set_id = [get_random_anchor_set(data['num_nodes'], c=1)]
-    graphs, anchor_eids, dists_max_list = construct_single_sp_graph(data, anchor_set_id)
+    graphs, anchor_eids, dists_max_list, edge_weights = construct_single_sp_graph(data, anchor_set_id)
 
-    return graphs, anchor_eids, dists_max_list
+    return graphs, anchor_eids, dists_max_list, edge_weights
