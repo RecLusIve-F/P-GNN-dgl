@@ -196,11 +196,11 @@ def get_random_anchor_set(n, c=0.5):
     return anchor_set_id
 
 
-def get_dist_max(anchor_set_id, dist, device):
-    dist_max = torch.zeros((dist.shape[0], len(anchor_set_id))).to(device)
-    dist_argmax = torch.zeros((dist.shape[0], len(anchor_set_id))).long().to(device)
+def get_dist_max(anchor_set_id, dist):
+    dist_max = torch.zeros((dist.shape[0], len(anchor_set_id)))
+    dist_argmax = torch.zeros((dist.shape[0], len(anchor_set_id))).long()
     for i in range(len(anchor_set_id)):
-        temp_id = torch.as_tensor(anchor_set_id[i], dtype=torch.long).to(device)
+        temp_id = torch.as_tensor(anchor_set_id[i], dtype=torch.long)
         dist_temp = torch.index_select(dist, 1, temp_id)
         dist_max_temp, dist_argmax_temp = torch.max(dist_temp, dim=-1)
         dist_max[:, i] = dist_max_temp
@@ -254,7 +254,7 @@ def construct_single_sp_graph(data, anchor_sets, data_list=None):
     for i, anchor_set in enumerate(tqdm(anchor_sets, leave=False)):
         if data is None:
             data = data_list[i]
-        dists_max, dists_argmax = get_dist_max(anchor_set, data['dists'], 'cpu')
+        dists_max, dists_argmax = get_dist_max(anchor_set, data['dists'])
         g, anchor_eid, edge_weight = construct_sp_graph(dists_max, dists_argmax)
         graphs.append(g)
         anchor_eids.append(anchor_eid)
