@@ -264,10 +264,10 @@ def preselect_all_anchor(data, args, num_workers=4):
     anchor_set_ids = [get_random_anchor_set(data['num_nodes'], c=1) for _ in range(args.epoch_num)]
     pool = get_context("spawn").Pool(processes=num_workers)
     results = [pool.apply_async(construct_single_sp_graph, args=(data, anchor_set_ids[int(len(anchor_set_ids) / num_workers * i):int(len(anchor_set_ids) / num_workers * (i + 1))], )) for i in range(num_workers)]
-    pool.close()
-    pool.join()
     output = [p.get() for p in results]
     graphs, anchor_eids, dists_max_list = merge_result(output)
+    pool.close()
+    pool.join()
 
     return graphs, anchor_eids, dists_max_list
 
