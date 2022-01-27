@@ -44,10 +44,11 @@ def train_model(data_list, model, args, loss_func, optimizer, device, anchor_set
     else:
         graphs, anchor_eids, dists_max, edge_weights = anchor_sets
     for idx, data in enumerate(tqdm(data_list, leave=False)):
+        da = {}
         g = dgl.graph(graphs[idx])
         g.ndata['feat'] = torch.as_tensor(data['feature'], dtype=torch.float)
         g.edata['sp_dist'] = torch.as_tensor(edge_weights[idx], dtype=torch.float)
-        data['graph'], data['anchor_eid'], data['dists_max'] = g.to(device), anchor_eids[idx], dists_max[idx]
+        da['graph'], da['anchor_eid'], da['dists_max'] = g.to(device), anchor_eids[idx], dists_max[idx]
 
         out = model(data)
         # get_link_mask(data, re_split=False)  # resample negative links
