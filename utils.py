@@ -258,9 +258,9 @@ def merge_result(outputs):
 
 
 def preselect_all_anchor(data, args, num_workers=4):
-    # torch.multiprocessing.set_sharing_strategy('file_system')
-    rlimit = resource.getrlimit(resource.RLIMIT_NOFILE)
-    resource.setrlimit(resource.RLIMIT_NOFILE, (2048, rlimit[1]))
+    torch.multiprocessing.set_sharing_strategy('file_system')
+    # rlimit = resource.getrlimit(resource.RLIMIT_NOFILE)
+    # resource.setrlimit(resource.RLIMIT_NOFILE, (2048, rlimit[1]))
     if args.epoch_num < 50:
         num_workers = int(num_workers / 4)
     elif args.epoch_num < 400:
