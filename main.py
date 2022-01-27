@@ -43,6 +43,8 @@ def train_model(data_list, model, args, loss_func, optimizer, device, anchor_set
         graphs, anchor_eids, dists_max, edge_weights = preselect_all_anchor(data=None, args=args, data_list=data_list)
     else:
         graphs, anchor_eids, dists_max, edge_weights = anchor_sets
+
+    da_list = []
     for idx, data in enumerate(tqdm(data_list, leave=False)):
         da = {}
         g = dgl.graph(graphs[idx])
@@ -50,7 +52,7 @@ def train_model(data_list, model, args, loss_func, optimizer, device, anchor_set
         g.edata['sp_dist'] = torch.as_tensor(edge_weights[idx], dtype=torch.float)
         da['graph'], da['anchor_eid'], da['dists_max'] = g.to(device), anchor_eids[idx], dists_max[idx]
 
-        out = model(data)
+        out = model(da)
         # get_link_mask(data, re_split=False)  # resample negative links
 
         loss = get_loss('train', data, out, loss_func, device)
@@ -65,9 +67,12 @@ def train_model(data_list, model, args, loss_func, optimizer, device, anchor_set
                         p.grad /= args.batch_size
             optimizer.step()
             optimizer.zero_grad()
+        da_list.append(da)
+
+    return da_list
 
 
-def eval_model(data_list, model, loss_func, out_act, device):
+def eval_model(data_list, da_list, model, loss_func, out_act, device):
     model.eval()
     loss_train = 0
     loss_val = 0
@@ -80,7 +85,7 @@ def eval_model(data_list, model, loss_func, out_act, device):
     data_list_len = len(data_list)
 
     for idx, data in enumerate(data_list):
-        out = model(data)
+        out = model(da_list[idx])
 
         # train
         tmp_loss, tmp_auc = get_loss('train', data, out, loss_func, device, out_act)
@@ -202,10 +207,10 @@ def main():
                     anchor_sets = [g, anchor_eid, dists_max, edge_weight]
                     # print(anchor_sets)
 
-                train_model(data_list[:effective_len], model, args, loss_func, optimizer, device, anchor_sets)
+                da_list = train_model(data_list[:effective_len], model, args, loss_func, optimizer, device, anchor_sets)
 
-                loss_train, auc_train, loss_val, auc_val, loss_test, auc_test = eval_model(data_list, model, loss_func,
-                                                                                           out_act, device)
+                loss_train, auc_train, loss_val, auc_val, loss_test, auc_test = eval_model(data_list, da_list, model,
+                                                                                           loss_func, out_act, device)
                 if auc_val > best_auc_val:
                     best_auc_val = auc_val
                     best_auc_test = auc_test
