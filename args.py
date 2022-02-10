@@ -4,56 +4,33 @@ from argparse import ArgumentParser
 def make_args():
     parser = ArgumentParser()
     # general
-    parser.add_argument('--task', dest='task', default='link', type=str,
-                        help='link; link_pair')
-    parser.add_argument('--dataset', dest='dataset', default='All', type=str,
-                        help='All; Cora; grid; communities; ppi')
-    parser.add_argument('--gpu', dest='gpu', action='store_true',
-                        help='whether use gpu')
-    parser.add_argument('--cache_no', dest='cache', action='store_false',
-                        help='whether use cache')
-    parser.add_argument('--cache', dest='cache', action='store_true',
-                        help='whether use cache')
-    parser.add_argument('--cpu', dest='gpu', action='store_false',
-                        help='whether use cpu')
-    parser.add_argument('--cuda', dest='cuda', default='0', type=str)
-    parser.add_argument('--multi', dest='multi', action='store_true')
-    parser.add_argument('--multi_no', dest='multi', action='store_false')
+    parser.add_argument('--task', type=str, default='link', choices=['link', 'link_pair'], help='Type of task.')
+    parser.add_argument('--gpu', type=int, default=-1, help='GPU index. Default: -1, using CPU.')
 
     # dataset
-    parser.add_argument('--remove_link_ratio', dest='remove_link_ratio', default=0.2, type=float)
-    parser.add_argument('--rm_feature', dest='rm_feature', action='store_true',
-                        help='whether rm_feature')
-    parser.add_argument('--rm_feature_no', dest='rm_feature', action='store_false',
-                        help='whether rm_feature')
-    parser.add_argument('--permute', dest='permute', action='store_true',
-                        help='whether permute subsets')
-    parser.add_argument('--permute_no', dest='permute', action='store_false',
-                        help='whether permute subsets')
-    parser.add_argument('--feature_pre', dest='feature_pre', action='store_true',
-                        help='whether pre transform feature')
-    parser.add_argument('--feature_pre_no', dest='feature_pre', action='store_false',
-                        help='whether pre transform feature')
-    parser.add_argument('--dropout', dest='dropout', action='store_true',
-                        help='whether dropout, default 0.5')
-    parser.add_argument('--dropout_no', dest='dropout', action='store_false',
-                        help='whether dropout, default 0.5')
-    parser.add_argument('--approximate', dest='approximate', default=-1, type=int,
-                        help='k-hop shortest path distance. -1 means exact shortest path')  # -1, 2
+    parser.add_argument('--dataset', type=str, default='grid',
+                        choices=['grid', 'communities', 'ppi', 'email', 'protein'], help='Name of dataset.')
+    parser.add_argument('--cache', action='store_true', help='Whether use cached dataset.')
+    parser.add_argument('--remove_link_ratio', type=float, default=0.2, help='Validation and test set size.')
+    parser.add_argument('--inductive', action='store_true', help='Inductive learning or transductive learning.')
+    parser.add_argument('--permute', action='store_true', help='Whether permute anchor set subsets.')
+    parser.add_argument('--feature_pre', action='store_true', help='Whether pre transform feature.')
+    parser.add_argument('--K_hop_dist', default=-1, type=int,
+                        help='K-hop shortest path distance. -1 means exact shortest path.')  # -1, 2
 
-    parser.add_argument('--batch_size', dest='batch_size', default=8, type=int)  # implemented via accumulating gradient
-    parser.add_argument('--layer_num', dest='layer_num', default=2, type=int)
-    parser.add_argument('--feature_dim', dest='feature_dim', default=32, type=int)
-    parser.add_argument('--hidden_dim', dest='hidden_dim', default=32, type=int)
-    parser.add_argument('--output_dim', dest='output_dim', default=32, type=int)
-    parser.add_argument('--anchor_num', dest='anchor_num', default=64, type=int)
+    # model
+    parser.add_argument('--lr', type=float, default=1e-2)
+    parser.add_argument('--batch_size', type=int, default=8)  # implemented via accumulating gradient
+    parser.add_argument('--dropout', type=float, default=0.5)
+    parser.add_argument('--layer_num', type=int, default=2)
+    parser.add_argument('--feature_dim', type=int, default=32)
+    parser.add_argument('--hidden_dim', type=int, default=32)
+    parser.add_argument('--output_dim', type=int, default=32)
+    parser.add_argument('--anchor_num', type=int, default=64)
 
-    parser.add_argument('--lr', dest='lr', default=1e-2, type=float)
-    parser.add_argument('--epoch_num', dest='epoch_num', default=2001, type=int)
-    parser.add_argument('--repeat_num', dest='repeat_num', default=10, type=int)  # 10
-    parser.add_argument('--epoch_log', dest='epoch_log', default=100, type=int)
+    parser.add_argument('--epoch_num', type=int, default=2001)
+    parser.add_argument('--repeat_num', type=int, default=10)  # 10
+    parser.add_argument('--epoch_log', type=int, default=100)
 
-    parser.set_defaults(gpu=False, task='link', dataset='ppi', cache=False, rm_feature=True, permute=True,
-                        feature_pre=True, dropout=True, approximate=-1, multi=True)
     args = parser.parse_args()
     return args

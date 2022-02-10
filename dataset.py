@@ -254,21 +254,18 @@ def load_dataset(name='communities'):
 
 
 def get_dataset(args, dataset_name, use_cache=True, remove_feature=False):
-    try:
-        dataset = load_dataset(dataset_name)
-    except Exception:
-        raise NotImplementedError
+    dataset = load_dataset(dataset_name)
 
     # precompute shortest path
     if not os.path.isdir('./datasets'):
         os.mkdir('./datasets')
-    if not os.path.isdir(f'./datasets/cache'):
-        os.mkdir(f'./datasets/cache')
-    f1_name = f'./datasets/cache/' + dataset_name + str(args.approximate) + '_dists.dat'
-    f2_name = f'./datasets/cache/' + dataset_name + str(args.approximate) + '_dists_removed.dat'
-    f3_name = f'./datasets/cache/' + dataset_name + str(args.approximate) + '_links_train.dat'
-    f4_name = f'./datasets/cache/' + dataset_name + str(args.approximate) + '_links_val.dat'
-    f5_name = f'./datasets/cache/' + dataset_name + str(args.approximate) + '_links_test.dat'
+    if not os.path.isdir('./datasets/cache'):
+        os.mkdir('./datasets/cache')
+    f1_name = './datasets/cache/' + dataset_name + str(args.K_hop_dist) + '_dists.dat'
+    f2_name = './datasets/cache/' + dataset_name + str(args.K_hop_dist) + '_dists_removed.dat'
+    f3_name = './datasets/cache/' + dataset_name + str(args.K_hop_dist) + '_links_train.dat'
+    f4_name = './datasets/cache/' + dataset_name + str(args.K_hop_dist) + '_links_val.dat'
+    f5_name = './datasets/cache/' + dataset_name + str(args.K_hop_dist) + '_links_test.dat'
 
     if use_cache and ((os.path.isfile(f2_name) and args.task == 'link') or
                       (os.path.isfile(f1_name) and args.task != 'link')):
@@ -309,21 +306,20 @@ def get_dataset(args, dataset_name, use_cache=True, remove_feature=False):
         links_val_list = []
         links_test_list = []
         for i, data in enumerate(dataset):
-            if 'link' in args.task:
-                data = get_link_mask(data, args.remove_link_ratio, re_split=True,
-                                     infer_link_positive=True if args.task == 'link' else False)
+            data = get_link_mask(data, args.remove_link_ratio, re_split=True,
+                                 infer_link_positive=True if args.task == 'link' else False)
             links_train_list.append(data['mask_link_positive_train'])
             links_val_list.append(data['mask_link_positive_val'])
             links_test_list.append(data['mask_link_positive_test'])
             if args.task == 'link':
                 dists_removed = precompute_dist_data(data['mask_link_positive_train'], data['num_nodes'],
-                                                     approximate=args.approximate)
+                                                     approximate=args.K_hop_dist)
                 dists_removed_list.append(dists_removed)
                 data['dists'] = torch.from_numpy(dists_removed).float()
                 data['edge_index'] = torch.from_numpy(duplicate_edges(data['mask_link_positive_train'])).long()
 
             else:
-                dists = precompute_dist_data(data['edge_index'].numpy(), data['num_nodes'], approximate=args.approximate)
+                dists = precompute_dist_data(data['edge_index'].numpy(), data['num_nodes'], approximate=args.K_hop_dist)
                 dists_list.append(dists)
                 data['dists'] = torch.from_numpy(dists).float()
             if remove_feature:

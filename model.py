@@ -75,12 +75,11 @@ class Nonlinear(nn.Module):
 
 
 class PGNN(torch.nn.Module):
-    def __init__(self, input_dim, feature_dim, hidden_dim, output_dim,
-                 feature_pre=True, layer_num=2, dropout=True, **kwargs):
+    def __init__(self, input_dim, feature_dim, hidden_dim, output_dim, feature_pre=True, layer_num=2, dropout=0.5):
         super(PGNN, self).__init__()
         self.feature_pre = feature_pre
         self.layer_num = layer_num
-        self.dropout = dropout
+        self.dropout = nn.Dropout(dropout)
         if layer_num == 1:
             hidden_dim = output_dim
         if feature_pre:
@@ -89,7 +88,7 @@ class PGNN(torch.nn.Module):
         else:
             self.conv_first = PGNN_layer(input_dim, hidden_dim)
         if layer_num > 1:
-            self.conv_hidden = nn.ModuleList([PGNN_layer(hidden_dim, hidden_dim) for i in range(layer_num - 2)])
+            self.conv_hidden = nn.ModuleList([PGNN_layer(hidden_dim, hidden_dim) for _ in range(layer_num - 2)])
             self.conv_out = PGNN_layer(hidden_dim, output_dim)
 
     def forward(self, data):
@@ -101,13 +100,11 @@ class PGNN(torch.nn.Module):
         if self.layer_num == 1:
             return x_position
         # x = F.relu(x) # Note: optional!
-        if self.dropout:
-            x = F.dropout(x, training=self.training)
+        x = self.dropout(x)
         for i in range(self.layer_num - 2):
             _, x = self.conv_hidden[i](graph, x, data['anchor_eid'], data['dists_max'])
             # x = F.relu(x) # Note: optional!
-            if self.dropout:
-                x = F.dropout(x, training=self.training)
+            x = self.dropout(x)
         x_position, x = self.conv_out(graph, x, data['anchor_eid'], data['dists_max'])
         x_position = F.normalize(x_position, p=2, dim=-1)
         return x_position
