@@ -21,37 +21,37 @@ scikit-learn 1.0.2
 ###### General options
 
 ```
---task                str        Task type.                          Default is 'link_pair'.
---dataset             str        The graph dataset name.             Default is 'communities'.
---gpu(--cpu)          bool       Whether use gpu.                    Default is False.
---cache(_no)          bool       Whether use cache.                  Default is False.
---cuda                str        GPU index.                          Defaule is '0'.
+--task                str        Type of task.                           Default is 'link'.
+--gpu                 int        GPU index.                              Default is -1, using CPU.
 ```
 
 ###### Dataset options
 
 ```
---remove_link_ratio   float      Validation and test set ratio.      Default is 0.2.
---rm_feature(_no)     bool       Whether rm_feature.                 Default is True.
---feature_pre(_no)    bool       Whether pre transform feature.      Default is True.
---permute(_no)        bool       Whether permute subsets.            Default is True.
---approximate         int        K-hop shortest path distance.       Deafault is -1.
+--dataset             str        The graph dataset name.                 Default is 'grid'.
+--cache               bool       Whether use cached dataset.             Default is False.
+--remove_link_ratio   float      Validation and test set size.           Default is 0.2, 0.1 for each set.
+--inductive           bool       Inductive or transductive learning.     Default is False, transductive learning.
+--feature_pre         bool       Whether pre transform feature.          Default is False.
+--permute             bool       Whether permute anchor set subsets.     Default is True.
+--K_hop_dist          int        K-hop shortest path distance.           Deafault is -1, -1 means exact shortest path..
 ```
 
 ###### Model options
 
 ```
---epoch_num           int        Number of training epochs.          Default is 2001.
---epoch_log           int        Frequency of report result.         Default is 10.
---lr                  float      Adam optimizer learning rate.       Default is 0.01.
---batch_size          float      Batch Size.                         Default is 8.
---repeat_num          int        Number of experiments.              Default is 2.
---feature_dim         int        Feature dimensionalities.           Default is 32.
---hidden_dim          int        Hidden layer dimensionalities.      Default is 32.
---output_dim          int        Output layer dimensionalities.      Default is 32.
---anchor_num          int        Number of Anchor sets.              Default is 64.
---layer_num           int        Number of P-GNN layers.             Default is 2.
---dropout(_no)        bool       Whether dropout, default 0.5        Default is True.
+--lr                  float      Adam optimizer learning rate.           Default is 0.01.
+--batch_size          float      Batch Size.                             Default is 8.
+--dropout             float      Dropout ration.                         Default is 0.5.
+--feature_dim         int        Feature dimensionalities.               Default is 32.
+--hidden_dim          int        Hidden layer dimensionalities.          Default is 32.
+--output_dim          int        Output layer dimensionalities.          Default is 32.
+--anchor_num          int        Number of Anchor sets.                  Default is 64.
+--layer_num           int        Number of P-GNN layers.                 Default is 2.
+
+--repeat_num          int        Number of experiments.                  Default is 2.
+--epoch_num           int        Number of training epochs.              Default is 2001.
+--epoch_log           int        Frequency of report result.             Default is 10.
 ```
 
 ###### Run
@@ -67,16 +67,16 @@ Training a P-GNN model on the different datasets with default options.
 
 ```bash
 # Communities transductive link prediction
-python main.py --dataset communities
+python main.py --dataset communities --task link
 
 # Communities inductive link prediction
-python main.py --dataset communities --rm_feature
+python main.py --dataset communities --inductive --task link
 ```
 
 Train a model with different model hyperparameters.
 
 ```bash
-python main.py --num-layers 1 --lr 0.001 --anchor_num 32
+python main.py --layer_num 1 --lr 0.001 --anchor_num 32 --dropout 0.2
 ```
 
 ### Performance

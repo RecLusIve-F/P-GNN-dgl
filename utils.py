@@ -152,7 +152,7 @@ def all_pairs_shortest_path_length_parallel(graph, cutoff=None, num_workers=4):
 
     pool = mp.Pool(processes=num_workers)
     results = [pool.apply_async(single_source_shortest_path_length_range, args=(
-    graph, nodes[int(len(nodes) / num_workers * i):int(len(nodes) / num_workers * (i + 1))], cutoff)) for i in
+        graph, nodes[int(len(nodes) / num_workers * i):int(len(nodes) / num_workers * (i + 1))], cutoff)) for i in
                range(num_workers)]
     output = [p.get() for p in results]
     dists_dict = merge_dicts(output)
@@ -223,7 +223,7 @@ def merge_result(outputs):
     return graphs, anchor_eids, dists_max_list, edge_weights
 
 
-def construct_sp_graph(dists_max, dists_argmax):
+def construct_single_sp_graph(dists_max, dists_argmax):
     src = []
     dst = []
     real_src = []
@@ -246,7 +246,7 @@ def construct_sp_graph(dists_max, dists_argmax):
     return g, anchor_eid, edge_weight
 
 
-def construct_single_sp_graph(data, anchor_sets, data_list=None):
+def construct_sp_graph(data, anchor_sets, data_list=None):
     graphs = []
     anchor_eids = []
     dists_max_list = []
@@ -255,7 +255,7 @@ def construct_single_sp_graph(data, anchor_sets, data_list=None):
         if data is None:
             data = data_list[i]
         dists_max, dists_argmax = get_dist_max(anchor_set, data['dists'])
-        g, anchor_eid, edge_weight = construct_sp_graph(dists_max, dists_argmax)
+        g, anchor_eid, edge_weight = construct_single_sp_graph(dists_max, dists_argmax)
         graphs.append(g)
         anchor_eids.append(anchor_eid)
         dists_max_list.append(dists_max)
@@ -264,15 +264,11 @@ def construct_single_sp_graph(data, anchor_sets, data_list=None):
     return graphs, anchor_eids, dists_max_list, edge_weights
 
 
-def preselect_all_anchor(data, args, data_list=None, num_workers=4):
+def preselect_all_anchor_parallel(data, args, data_list=None, num_workers=4):
     if data is None:
-        # if len(data_list) < 50:
-        #     num_workers = int(num_workers / 4)
-        # elif len(data_list) < 400:
-        #     num_workers = int(num_workers / 2)
         pool = get_context("spawn").Pool(processes=num_workers)
         anchor_set_ids = [get_random_anchor_set(data['num_nodes'], c=1) for data in data_list]
-        results = [pool.apply_async(construct_single_sp_graph, args=(None, anchor_set_ids[int(len(
+        results = [pool.apply_async(construct_sp_graph, args=(None, anchor_set_ids[int(len(
             anchor_set_ids) / num_workers * i):int(len(anchor_set_ids) / num_workers * (i + 1))], data_list[int(len(
             anchor_set_ids) / num_workers * i):int(len(anchor_set_ids) / num_workers * (i + 1))]), ) for i in
                    range(num_workers)]
@@ -283,7 +279,7 @@ def preselect_all_anchor(data, args, data_list=None, num_workers=4):
             num_workers = int(num_workers / 2)
         pool = get_context("spawn").Pool(processes=num_workers)
         anchor_set_ids = [get_random_anchor_set(data['num_nodes'], c=1) for _ in range(args.epoch_num)]
-        results = [pool.apply_async(construct_single_sp_graph, args=(data, anchor_set_ids[int(len(
+        results = [pool.apply_async(construct_sp_graph, args=(data, anchor_set_ids[int(len(
             anchor_set_ids) / num_workers * i):int(len(anchor_set_ids) / num_workers * (i + 1))],)) for i in
                    range(num_workers)]
 
@@ -295,13 +291,13 @@ def preselect_all_anchor(data, args, data_list=None, num_workers=4):
     return graphs, anchor_eids, dists_max_list, edge_weights
 
 
-def exact_preselect_all_anchor(data, args):
+def preselect_all_anchor(data, args):
     anchor_set_ids = [get_random_anchor_set(data['num_nodes'], c=1) for _ in range(args.epoch_num)]
     return construct_single_sp_graph(data, anchor_set_ids)
 
 
 def preselect_single_anchor(data):
     anchor_set_id = [get_random_anchor_set(data['num_nodes'], c=1)]
-    graphs, anchor_eids, dists_max_list, edge_weights = construct_single_sp_graph(data, anchor_set_id)
+    graphs, anchor_eids, dists_max_list, edge_weights = construct_sp_graph(data, anchor_set_id)
 
     return graphs, anchor_eids, dists_max_list, edge_weights

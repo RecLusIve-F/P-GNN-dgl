@@ -10,7 +10,7 @@ from args import make_args
 from tqdm.auto import tqdm
 from dataset import get_dataset
 from sklearn.metrics import roc_auc_score
-from utils import preselect_all_anchor, preselect_single_anchor, exact_preselect_all_anchor
+from utils import preselect_all_anchor_parallel, preselect_single_anchor
 
 
 import warnings
@@ -40,19 +40,20 @@ def get_loss(p, data, out, loss_func, device, out_act=None):
 
 def train_model(data_list, model, args, loss_func, optimizer, device, anchor_sets):
     if anchor_sets is None:
-        graphs, anchor_eids, dists_max, edge_weights = preselect_all_anchor(data=None, args=args, data_list=data_list)
+        graphs, anchor_eids, dists_max, edge_weights = preselect_all_anchor_parallel(data=None, args=args,
+                                                                                     data_list=data_list)
     else:
         graphs, anchor_eids, dists_max, edge_weights = anchor_sets
 
-    da_list = []
+    graph_data_list = []
     for idx, data in enumerate(tqdm(data_list, leave=False)):
-        da = {}
+        g_data = {}
         g = dgl.graph(graphs[idx])
         g.ndata['feat'] = torch.as_tensor(data['feature'], dtype=torch.float)
         g.edata['sp_dist'] = torch.as_tensor(edge_weights[idx], dtype=torch.float)
-        da['graph'], da['anchor_eid'], da['dists_max'] = g.to(device), anchor_eids[idx], dists_max[idx]
+        g_data['graph'], g_data['anchor_eid'], g_data['dists_max'] = g.to(device), anchor_eids[idx], dists_max[idx]
 
-        out = model(da)
+        out = model(g_data)
         # get_link_mask(data, re_split=False)  # resample negative links
 
         loss = get_loss('train', data, out, loss_func, device)
@@ -67,12 +68,12 @@ def train_model(data_list, model, args, loss_func, optimizer, device, anchor_set
                         p.grad /= args.batch_size
             optimizer.step()
             optimizer.zero_grad()
-        da_list.append(da)
+        graph_data_list.append(g_data)
 
-    return da_list
+    return graph_data_list
 
 
-def eval_model(data_list, da_list, model, loss_func, out_act, device):
+def eval_model(data_list, graph_data_list, model, loss_func, out_act, device):
     model.eval()
     loss_train = 0
     loss_val = 0
@@ -85,7 +86,7 @@ def eval_model(data_list, da_list, model, loss_func, out_act, device):
     data_list_len = len(data_list)
 
     for idx, data in enumerate(data_list):
-        out = model(da_list[idx])
+        out = model(graph_data_list[idx])
 
         # train
         tmp_loss, tmp_auc = get_loss('train', data, out, loss_func, device, out_act)
@@ -112,130 +113,108 @@ def main():
     args = make_args()
     print(args)
 
-    # set up gpu
-    if args.gpu:
-        os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
-        os.environ['CUDA_VISIBLE_DEVICES'] = str(args.cuda)
-        print('Using GPU {}'.format(os.environ['CUDA_VISIBLE_DEVICES']))
+    # check cuda
+    if args.gpu >= 0 and torch.cuda.is_available():
+        device = f'cuda:{args.gpu}'
     else:
-        print('Using CPU')
-    device = torch.device('cuda:' + str(args.cuda) if args.gpu else 'cpu')
+        device = 'cpu'
 
-    if args.dataset == 'All':
-        if args.task == 'link':
-            datasets_name = ['grid', 'communities', 'ppi']
-        else:
-            datasets_name = ['communities', 'email', 'protein']
-    else:
-        datasets_name = [args.dataset]
+    dataset_name = args.dataset
+    print(f'Dataset: {dataset_name}, Learning Type: {"Inductive" if args.inductive else "Transductive"}, '
+          f'Task: {args.task}, Model layer num: {args.layer_num}-layer, Shortest Path Approximate: '
+          f'{"Exact" if args.K_hop_dist == -1 else "Fast"}')
+    results = []
 
-    for dataset_name in datasets_name:
-        print(f'Dataset: {dataset_name}, Learning Type: {"Inductive" if args.rm_feature else "Transductive"}, '
-              f'Task: {args.task}, Model layer num: {args.layer_num}-layer, Shortest Path Approximate: '
-              f'{"Exact" if args.approximate == -1 else "Fast"}')
-        results = []
+    for repeat in range(args.repeat_num):
+        time1 = time.time()
+        data_list = get_dataset(args, dataset_name, use_cache=args.cache, remove_feature=args.inductive)
+        time2 = time.time()
+        print(dataset_name, 'load time', time2 - time1)
 
-        for repeat in range(args.repeat_num):
-            result_val = []
-            result_test = []
-            time1 = time.time()
-            data_list = get_dataset(args, dataset_name, use_cache=args.cache, remove_feature=args.rm_feature)
-            time2 = time.time()
-            print(dataset_name, 'load time', time2 - time1)
+        num_features = data_list[0]['feature'].shape[1]
+        args.batch_size = min(args.batch_size, len(data_list))
+        print('Anchor num {}, Batch size {}'.format(args.anchor_num, args.batch_size))
 
-            num_features = data_list[0]['feature'].shape[1]
-            args.batch_size = min(args.batch_size, len(data_list))
-            print('Anchor num {}, Batch size {}'.format(args.anchor_num, args.batch_size))
+        # data
+        graphs = []
+        anchor_eids = []
+        dists_max_list = []
+        edge_weights = []
+        anchor_sets = None
 
-            # data
-            graphs = []
-            anchor_eids = []
-            dists_max_list = []
-            edge_weights = []
-            anchor_sets = None
+        if dataset_name not in ['ppi', 'protein']:
+            for i, data in enumerate(data_list):
+                if not args.permute:
+                    g, anchor_eid, dists_max, edge_weight = preselect_single_anchor(data)
+                    g = g * args.epoch_num
+                    anchor_eid = anchor_eid * args.epoch_num
+                    dists_max = dists_max * args.epoch_num
+                    edge_weight = edge_weight * args.epoch_num
+                else:
+                    g, anchor_eid, dists_max, edge_weight = preselect_all_anchor_parallel(data, args)
+
+                graphs.append(g)
+                anchor_eids.append(anchor_eid)
+                dists_max_list.append(dists_max)
+                edge_weights.append(edge_weight)
+
+            print('Preselect anchor_set Finished!')
+
+        # model
+        input_dim = num_features
+        output_dim = args.output_dim
+        model = PGNN(input_dim=input_dim, feature_dim=args.feature_dim, hidden_dim=args.hidden_dim,
+                     output_dim=output_dim, feature_pre=args.feature_pre, layer_num=args.layer_num,
+                     dropout=args.dropout).to(device)
+
+        # loss
+        optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=5e-4)
+        loss_func = nn.BCEWithLogitsLoss()
+        out_act = nn.Sigmoid()
+
+        best_auc_val = -1
+        best_auc_test = -1
+        for epoch in range(args.epoch_num):
+            if epoch == 200:
+                for param_group in optimizer.param_groups:
+                    param_group['lr'] /= 10
+
+            model.train()
+            optimizer.zero_grad()
+            shuffle(data_list)
 
             if dataset_name not in ['ppi', 'protein']:
-                for i, data in enumerate(data_list):
-                    if not args.permute:
-                        g, anchor_eid, dists_max, edge_weight = preselect_single_anchor(data)
-                        g = g * args.epoch_num
-                        anchor_eid = anchor_eid * args.epoch_num
-                        dists_max = dists_max * args.epoch_num
-                        edge_weight = edge_weight * args.epoch_num
-                    else:
-                        if args.multi:
-                            g, anchor_eid, dists_max, edge_weight = preselect_all_anchor(data, args)
-                        else:
-                            g, anchor_eid, dists_max, edge_weight = exact_preselect_all_anchor(data, args)
+                g = [i[epoch] for i in graphs]
+                anchor_eid = [i[epoch] for i in anchor_eids]
+                dists_max = [i[epoch] for i in dists_max_list]
+                edge_weight = [i[epoch] for i in edge_weights]
+                anchor_sets = [g, anchor_eid, dists_max, edge_weight]
 
-                    graphs.append(g)
-                    anchor_eids.append(anchor_eid)
-                    dists_max_list.append(dists_max)
-                    edge_weights.append(edge_weight)
+            graph_data_list = train_model(data_list, model, args, loss_func, optimizer, device, anchor_sets)
 
-                print('Preselect anchor_set Finished!')
+            loss_train, auc_train, loss_val, auc_val, loss_test, auc_test = eval_model(data_list, graph_data_list,
+                                                                                       model, loss_func, out_act,
+                                                                                       device)
+            if auc_val > best_auc_val:
+                best_auc_val = auc_val
+                best_auc_test = auc_test
 
-            # model
-            input_dim = num_features
-            output_dim = args.output_dim
-            model = PGNN(input_dim=input_dim, feature_dim=args.feature_dim, hidden_dim=args.hidden_dim,
-                         output_dim=output_dim, feature_pre=args.feature_pre, layer_num=args.layer_num,
-                         dropout=args.dropout).to(device)
+            if epoch % args.epoch_log == 0:
+                print(repeat, epoch, 'Loss {:.4f}'.format(loss_train), 'Train AUC: {:.4f}'.format(auc_train),
+                      'Val AUC: {:.4f}'.format(auc_val), 'Test AUC: {:.4f}'.format(auc_test),
+                      'Best Val AUC: {:.4f}'.format(best_auc_val), 'Best Test AUC: {:.4f}'.format(best_auc_test))
 
-            # loss
-            optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=5e-4)
-            loss_func = nn.BCEWithLogitsLoss()
-            out_act = nn.Sigmoid()
+        results.append(best_auc_test)
 
-            best_auc_val = -1
-            best_auc_test = -1
-            for epoch in range(args.epoch_num):
-                if epoch == 200:
-                    for param_group in optimizer.param_groups:
-                        param_group['lr'] /= 10
+    results = np.array(results)
+    results_mean = np.mean(results).round(6)
+    results_std = np.std(results).round(6)
+    print('-----------------Final-------------------')
+    print(results_mean, results_std)
 
-                model.train()
-                optimizer.zero_grad()
-                shuffle(data_list)
-                effective_len = len(data_list) // args.batch_size * len(data_list)
-
-                if dataset_name not in ['ppi', 'protein']:
-                    g = [i[epoch] for i in graphs[:effective_len]]
-                    anchor_eid = [i[epoch] for i in anchor_eids[:effective_len]]
-                    dists_max = [i[epoch] for i in dists_max_list[:effective_len]]
-                    edge_weight = [i[epoch] for i in edge_weights[:effective_len]]
-                    anchor_sets = [g, anchor_eid, dists_max, edge_weight]
-                    # print(anchor_sets)
-
-                da_list = train_model(data_list[:effective_len], model, args, loss_func, optimizer, device, anchor_sets)
-
-                loss_train, auc_train, loss_val, auc_val, loss_test, auc_test = eval_model(data_list, da_list, model,
-                                                                                           loss_func, out_act, device)
-                if auc_val > best_auc_val:
-                    best_auc_val = auc_val
-                    best_auc_test = auc_test
-
-                if epoch % args.epoch_log == 0:
-                    print(repeat, epoch, 'Loss {:.4f}'.format(loss_train), 'Train AUC: {:.4f}'.format(auc_train),
-                          'Val AUC: {:.4f}'.format(auc_val), 'Test AUC: {:.4f}'.format(auc_test),
-                          'Best Val AUC: {:.4f}'.format(best_auc_val), 'Best Test AUC: {:.4f}'.format(best_auc_test))
-
-                result_val.append(auc_val)
-                result_test.append(auc_test)
-
-            result_val = np.array(result_val)
-            result_test = np.array(result_test)
-            results.append(result_test[np.argmax(result_val)])
-
-        results = np.array(results)
-        results_mean = np.mean(results).round(6)
-        results_std = np.std(results).round(6)
-        print('-----------------Final-------------------')
-        print(results_mean, results_std)
-
-        with open(f'results/{dataset_name}_{"Inductive" if args.rm_feature else "Transductive"}_{args.task}_'
-                  f'{args.layer_num}-layer_approximate{args.approximate}', 'w') as f:
-            f.write('{}, {}\n'.format(results_mean, results_std))
+    with open(f'results/{dataset_name}_{"Inductive" if args.inductive else "Transductive"}_{args.task}_'
+              f'{args.layer_num}-layer_K_hop_dist{args.K_hop_dist}', 'w') as f:
+        f.write('{}, {}\n'.format(results_mean, results_std))
 
 
 if __name__ == '__main__':
