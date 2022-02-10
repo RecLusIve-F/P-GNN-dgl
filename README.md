@@ -56,14 +56,10 @@ scikit-learn 1.0.2
 
 ###### Run
 
-The following commands learn a neural network and predict on the test set.
-Training a P-GNN model on the default dataset with default options.
+The following commands train a neural network and predict on the test set.
 
-```bash
-python main.py
-```
+Training a P-GNN model on the dataset with default options.
 
-Training a P-GNN model on the different datasets with default options.
 
 ```bash
 # Communities transductive link prediction
@@ -76,7 +72,7 @@ python main.py --dataset communities --inductive --task link
 Train a model with different model hyperparameters.
 
 ```bash
-python main.py --layer_num 1 --lr 0.001 --anchor_num 32 --dropout 0.2
+python main.py --dataset communities --task link --layer_num 1 --lr 0.1 --anchor_num 32 --dropout 0.2
 ```
 
 ### Performance
