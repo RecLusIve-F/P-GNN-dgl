@@ -34,7 +34,7 @@ scikit-learn 1.0.2
 --inductive           bool       Inductive or transductive learning.     Default is False, transductive learning.
 --feature_pre         bool       Whether pre transform feature.          Default is False.
 --permute             bool       Whether permute anchor set subsets.     Default is True.
---K_hop_dist          int        K-hop shortest path distance.           Deafault is -1, -1 means exact shortest path..
+--K_hop_dist          int        K-hop shortest path distance.           Deafault is -1, -1 means exact shortest path.
 ```
 
 ###### Model options
