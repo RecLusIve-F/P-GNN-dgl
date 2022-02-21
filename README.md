@@ -6,7 +6,7 @@ Contributor: [RecLusIve-F](https://github.com/RecLusIve-F)
 
 ### Requirements
 
-The codebase is implemented in Python 3.6. For version requirement of packages, see below.
+The codebase is implemented in Python 3.8. For version requirement of packages, see below.
 
 ```
 dgl 0.7.2
