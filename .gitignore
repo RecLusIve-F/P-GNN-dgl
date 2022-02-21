@@ -3,4 +3,3 @@ datasets
 __pycache__
 results
 data/ppi
-pytorch dataset.py
