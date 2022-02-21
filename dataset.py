@@ -1,12 +1,10 @@
-import os
 import json
 import torch
 import random
-import pickle
 import numpy as np
 import networkx as nx
 from networkx.readwrite import json_graph
-from utils import deduplicate_edges, duplicate_edges, get_link_mask, precompute_dist_data
+from utils import duplicate_edges, get_link_mask, precompute_dist_data
 
 
 # main data load function
@@ -175,7 +173,9 @@ def graph_load_batch(min_num_nodes=20, max_num_nodes=1000, name='ENZYMES', node_
     print('Loading graph dataset: ' + str(name))
     G = nx.Graph()
     # load data
-    path = f'./data/{name}/'
+    path = './data/{}/'.format(name)
+    data_node_att = None
+    data_graph_labels = None
     data_adj = np.loadtxt(path + name + '_A.txt', delimiter=',').astype(int)
     if node_attributes:
         data_node_att = np.loadtxt(path + name + '_node_attributes.txt', delimiter=',')
@@ -253,88 +253,32 @@ def load_dataset(name='communities'):
     return nx_to_data(graphs, features, edge_labels)
 
 
-def get_dataset(args, dataset_name, use_cache=True, remove_feature=False):
+def get_dataset(args, dataset_name, remove_feature=False):
     dataset = load_dataset(dataset_name)
-
-    # precompute shortest path
-    if not os.path.isdir('./datasets'):
-        os.mkdir('./datasets')
-    if not os.path.isdir('./datasets/cache'):
-        os.mkdir('./datasets/cache')
-    f1_name = './datasets/cache/' + dataset_name + str(args.K_hop_dist) + '_dists.dat'
-    f2_name = './datasets/cache/' + dataset_name + str(args.K_hop_dist) + '_dists_removed.dat'
-    f3_name = './datasets/cache/' + dataset_name + str(args.K_hop_dist) + '_links_train.dat'
-    f4_name = './datasets/cache/' + dataset_name + str(args.K_hop_dist) + '_links_val.dat'
-    f5_name = './datasets/cache/' + dataset_name + str(args.K_hop_dist) + '_links_test.dat'
-
-    if use_cache and ((os.path.isfile(f2_name) and args.task == 'link') or
-                      (os.path.isfile(f1_name) and args.task != 'link')):
-        with open(f3_name, 'rb') as f3, open(f4_name, 'rb') as f4, open(f5_name, 'rb') as f5:
-            links_train_list = pickle.load(f3)
-            links_val_list = pickle.load(f4)
-            links_test_list = pickle.load(f5)
+    data_list = []
+    dists_list = []
+    dists_removed_list = []
+    links_train_list = []
+    links_val_list = []
+    links_test_list = []
+    for i, data in enumerate(dataset):
+        data = get_link_mask(data, args.remove_link_ratio, re_split=True,
+                             infer_link_positive=True if args.task == 'link' else False)
+        links_train_list.append(data['mask_link_positive_train'])
+        links_val_list.append(data['mask_link_positive_val'])
+        links_test_list.append(data['mask_link_positive_test'])
         if args.task == 'link':
-            with open(f2_name, 'rb') as f2:
-                dists_removed_list = pickle.load(f2)
+            dists_removed = precompute_dist_data(data['mask_link_positive_train'], data['num_nodes'],
+                                                 approximate=args.K_hop_dist)
+            dists_removed_list.append(dists_removed)
+            data['dists'] = torch.from_numpy(dists_removed).float()
+            data['edge_index'] = torch.from_numpy(duplicate_edges(data['mask_link_positive_train'])).long()
+
         else:
-            with open(f1_name, 'rb') as f1:
-                dists_list = pickle.load(f1)
-
-        print('Cache loaded!')
-        data_list = []
-        for i, data in enumerate(dataset):
-            if args.task == 'link':
-                data['mask_link_positive'] = deduplicate_edges(data['edge_index'].numpy())
-            data['mask_link_positive_train'] = links_train_list[i]
-            data['mask_link_positive_val'] = links_val_list[i]
-            data['mask_link_positive_test'] = links_test_list[i]
-            data = get_link_mask(data, re_split=False)
-
-            if args.task == 'link':
-                data['dists'] = torch.from_numpy(dists_removed_list[i]).float()
-                data['edge_index'] = torch.from_numpy(duplicate_edges(data['mask_link_positive_train'])).long()
-            else:
-                data['dists'] = torch.from_numpy(dists_list[i]).float()
-            if remove_feature:
-                data['feature'] = torch.ones((data['feature'].shape[0], 1))
-            data_list.append(data)
-    else:
-        data_list = []
-        dists_list = []
-        dists_removed_list = []
-        links_train_list = []
-        links_val_list = []
-        links_test_list = []
-        for i, data in enumerate(dataset):
-            data = get_link_mask(data, args.remove_link_ratio, re_split=True,
-                                 infer_link_positive=True if args.task == 'link' else False)
-            links_train_list.append(data['mask_link_positive_train'])
-            links_val_list.append(data['mask_link_positive_val'])
-            links_test_list.append(data['mask_link_positive_test'])
-            if args.task == 'link':
-                dists_removed = precompute_dist_data(data['mask_link_positive_train'], data['num_nodes'],
-                                                     approximate=args.K_hop_dist)
-                dists_removed_list.append(dists_removed)
-                data['dists'] = torch.from_numpy(dists_removed).float()
-                data['edge_index'] = torch.from_numpy(duplicate_edges(data['mask_link_positive_train'])).long()
-
-            else:
-                dists = precompute_dist_data(data['edge_index'].numpy(), data['num_nodes'], approximate=args.K_hop_dist)
-                dists_list.append(dists)
-                data['dists'] = torch.from_numpy(dists).float()
-            if remove_feature:
-                data['feature'] = torch.ones((data['feature'].shape[0], 1))
-            data_list.append(data)
-
-        with open(f1_name, 'wb') as f1, open(f2_name, 'wb') as f2, open(f3_name, 'wb') as f3, \
-                open(f4_name, 'wb') as f4, open(f5_name, 'wb') as f5:
-
-            if args.task == 'link':
-                pickle.dump(dists_removed_list, f2)
-            else:
-                pickle.dump(dists_list, f1)
-            pickle.dump(links_train_list, f3)
-            pickle.dump(links_val_list, f4)
-            pickle.dump(links_test_list, f5)
-        print('Cache saved!')
+            dists = precompute_dist_data(data['edge_index'].numpy(), data['num_nodes'], approximate=args.K_hop_dist)
+            dists_list.append(dists)
+            data['dists'] = torch.from_numpy(dists).float()
+        if remove_feature:
+            data['feature'] = torch.ones((data['feature'].shape[0], 1))
+        data_list.append(data)
     return data_list

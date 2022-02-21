@@ -28,7 +28,7 @@ def duplicate_edges(edges):
     return np.concatenate((edges, edges[::-1, :]), axis=-1)
 
 
-# # approximate
+# approximate
 def get_edge_mask_link_negative_approximate(mask_link_positive, num_nodes, num_negative_edges):
     links_temp = np.zeros((num_nodes, num_nodes)) + np.identity(num_nodes)
     mask_link_positive = duplicate_edges(mask_link_positive)
@@ -240,9 +240,6 @@ def construct_single_sp_graph(dists_max, dists_argmax):
     eid_dict = {(u, v): i for i, (u, v) in enumerate(list(zip(dst, src)))}
     anchor_eid = [eid_dict.get((u, v)) for u, v in zip(real_dst, real_src)]
     g = (dst, src)
-    # g = dgl.graph((dst, src))
-    # g.edata['sp_dist'] = torch.as_tensor(edge_weight, dtype=torch.float)
-    # g.ndata['feat'] = torch.as_tensor(feature, dtype=torch.float)
     return g, anchor_eid, edge_weight
 
 
