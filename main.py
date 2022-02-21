@@ -18,15 +18,15 @@ warnings.filterwarnings('ignore')
 
 
 def get_loss(p, data, out, loss_func, device, out_act=None):
-    edge_mask = np.concatenate((data[f'mask_link_positive_{p}'], data[f'mask_link_negative_{p}']), axis=-1)
+    edge_mask = np.concatenate((data['mask_link_positive_{}'.format(p)], data['mask_link_negative_{}'.format(p)]), axis=-1)
 
     nodes_first = torch.index_select(out, 0, torch.from_numpy(edge_mask[0, :]).long().to(out.device))
     nodes_second = torch.index_select(out, 0, torch.from_numpy(edge_mask[1, :]).long().to(out.device))
 
     pred = torch.sum(nodes_first * nodes_second, dim=-1)
 
-    label_positive = torch.ones([data[f'mask_link_positive_{p}'].shape[1], ], dtype=pred.dtype)
-    label_negative = torch.zeros([data[f'mask_link_negative_{p}'].shape[1], ], dtype=pred.dtype)
+    label_positive = torch.ones([data['mask_link_positive_{}'.format(p)].shape[1], ], dtype=pred.dtype)
+    label_negative = torch.zeros([data['mask_link_negative_{}'.format(p)].shape[1], ], dtype=pred.dtype)
     label = torch.cat((label_positive, label_negative)).to(device)
     loss = loss_func(pred, label)
 
@@ -54,15 +54,12 @@ def train_model(data_list, model, args, loss_func, optimizer, device, anchor_set
         g_data['graph'], g_data['anchor_eid'], g_data['dists_max'] = g.to(device), anchor_eids[idx], dists_max[idx]
 
         out = model(g_data)
-        # get_link_mask(data, re_split=False)  # resample negative links
 
         loss = get_loss('train', data, out, loss_func, device)
 
-        # update
         loss.backward()
         if idx % args.batch_size == args.batch_size - 1:
             if args.batch_size > 1:
-                # if this is slow, no need to do this normalization
                 for p in model.parameters():
                     if p.grad is not None:
                         p.grad /= args.batch_size
@@ -88,17 +85,17 @@ def eval_model(data_list, graph_data_list, model, loss_func, out_act, device):
     for idx, data in enumerate(data_list):
         out = model(graph_data_list[idx])
 
-        # train
+        # train loss and auc
         tmp_loss, tmp_auc = get_loss('train', data, out, loss_func, device, out_act)
         loss_train += tmp_loss.cpu().data.numpy() / data_list_len
         auc_train += tmp_auc / data_list_len
 
-        # val
+        # val loss and auc
         tmp_loss, tmp_auc = get_loss('val', data, out, loss_func, device, out_act)
         loss_val += tmp_loss.cpu().data.numpy() / data_list_len
         auc_val += tmp_auc / data_list_len
 
-        # test
+        # test loss and auc
         tmp_loss, tmp_auc = get_loss('test', data, out, loss_func, device, out_act)
         loss_test += tmp_loss.cpu().data.numpy() / data_list_len
         auc_test += tmp_auc / data_list_len
@@ -107,33 +104,35 @@ def eval_model(data_list, graph_data_list, model, loss_func, out_act, device):
 
 
 def main():
+    # The mean and standard deviation of the experimental results are stored
+    # in the 'results' folder with the file name of the experimental parameter.
     if not os.path.isdir('results'):
         os.mkdir('results')
 
     args = make_args()
-    print(args)
 
     # check cuda
     if args.gpu >= 0 and torch.cuda.is_available():
-        device = f'cuda:{args.gpu}'
+        device = 'cuda:{}'.format(args.gpu)
     else:
         device = 'cpu'
 
     dataset_name = args.dataset
-    print(f'Dataset: {dataset_name}, Learning Type: {"Inductive" if args.inductive else "Transductive"}, '
-          f'Task: {args.task}, Model layer num: {args.layer_num}-layer, Shortest Path Approximate: '
-          f'{"Exact" if args.K_hop_dist == -1 else "Fast"}')
+
+    print('Dataset: {}'.format(dataset_name), 'Learning Type: {}'.format(['Transductive', 'Inductive'][args.inductive]),
+          'Task: {}'.format(args.task), 'Model layer num: {}-layer'.format(args.layer_num),
+          'Shortest Path Approximate: {}'.format(['Fast', 'Exact'][args.K_hop_dist == -1]))
+
     results = []
 
     for repeat in range(args.repeat_num):
         time1 = time.time()
-        data_list = get_dataset(args, dataset_name, use_cache=args.cache, remove_feature=args.inductive)
+        data_list = get_dataset(args, dataset_name, remove_feature=args.inductive)
         time2 = time.time()
-        print(dataset_name, 'load time', time2 - time1)
+        print(dataset_name, 'Dateset load time', time2 - time1)
 
         num_features = data_list[0]['feature'].shape[1]
         args.batch_size = min(args.batch_size, len(data_list))
-        print('Anchor num {}, Batch size {}'.format(args.anchor_num, args.batch_size))
 
         # data
         graphs = []
@@ -157,8 +156,6 @@ def main():
                 anchor_eids.append(anchor_eid)
                 dists_max_list.append(dists_max)
                 edge_weights.append(edge_weight)
-
-            print('Preselect anchor_set Finished!')
 
         # model
         input_dim = num_features
@@ -212,8 +209,8 @@ def main():
     print('-----------------Final-------------------')
     print(results_mean, results_std)
 
-    with open(f'results/{dataset_name}_{"Inductive" if args.inductive else "Transductive"}_{args.task}_'
-              f'{args.layer_num}-layer_K_hop_dist{args.K_hop_dist}', 'w') as f:
+    with open('results/{}_{}_{}_{}_{}.txt'.format(dataset_name, ['Transductive', 'Inductive'][args.inductive], args.task,
+                                              args.layer_num, args.K_hop_dist), 'w') as f:
         f.write('{}, {}\n'.format(results_mean, results_std))
 
 

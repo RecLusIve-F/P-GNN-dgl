@@ -29,12 +29,11 @@ scikit-learn 1.0.2
 
 ```
 --dataset             str        The graph dataset name.                 Default is 'grid'.
---cache               bool       Whether use cached dataset.             Default is False.
 --remove_link_ratio   float      Validation and test set size.           Default is 0.2, 0.1 for each set.
 --inductive           bool       Inductive or transductive learning.     Default is False, transductive learning.
 --feature_pre         bool       Whether pre transform feature.          Default is False.
---permute             bool       Whether permute anchor set subsets.     Default is True.
---K_hop_dist          int        K-hop shortest path distance.           Deafault is -1, -1 means exact shortest path.
+--permute             bool       Whether permute anchor set subsets.     Default is False.
+--K_hop_dist          int        K-hop shortest path distance.           Default is -1, -1 means exact shortest path.
 ```
 
 ###### Model options
@@ -54,37 +53,46 @@ scikit-learn 1.0.2
 --epoch_log           int        Frequency of report result.             Default is 10.
 ```
 
-###### Run
+###### Examples
 
-The following commands train a neural network and predict on the test set.
+The following commands could reproduce the results reported below.
 
-Training a P-GNN model on the dataset with default options.
-
+Link prediction task
 
 ```bash
-# Communities transductive link prediction
-python main.py --dataset communities --task link
+# Grid-T
+python main.py --task link --dataset grid --feature_pre --permute
 
-# Communities inductive link prediction
-python main.py --dataset communities --inductive --task link
+# Communities-T
+python main.py --task link --dataset communities --feature_pre --permute
+
+# Grid
+python main.py --task link --dataset grid --inductive --feature_pre --permute
+
+# Communities
+python main.py --task link --dataset communities --inductive --feature_pre --permute
 ```
 
-Train a model with different model hyperparameters.
+Link pair prediction task
 
 ```bash
-python main.py --dataset communities --task link --layer_num 1 --lr 0.1 --anchor_num 32 --dropout 0.2
+# Communities
+python main.py --task link_pair --dataset communities --inductive --feature_pre --permute
+
+# Email
+python main.py --task link_pair --dataset email --inductive --feature_pre --permute
 ```
 
 ### Performance
 
-###### Link prediction(Grid-T and Communities-T refer to the transductive learning setting of Grid and Communities)
+###### Link prediction task(Grid-T and Communities-T refer to the transductive learning setting of Grid and Communities)
 
 |             Dataset              |    Grid-T     | Communities-T |     Grid      |  Communities  |      PPI      |
 | :------------------------------: | :-----------: | :-----------: | :-----------: | :-----------: | :-----------: |
 | ROC AUC ( P-GNN-E-2L in Table 1) | 0.834 ± 0.099 | 0.988 ± 0.003 | 0.940 ± 0.027 | 0.985 ± 0.008 | 0.808 ± 0.003 |
 |    ROC AUC (DGL: P-GNN-E-2L)     | 0.657 ± 0.034 | 0.965 ± 0.025 | 0.923 ± 0.027 | 0.991 ± 0.040 |       —       |
 
-###### Link pair prediction
+###### Link pair prediction task
 
 |             Dataset              | Communities |     Email     |    Protein    |
 | :------------------------------: | :---------: | :-----------: | :-----------: |
