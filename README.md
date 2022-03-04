@@ -48,7 +48,7 @@ scikit-learn 1.0.2
 --anchor_num          int        Number of Anchor sets.                  Default is 64.
 --layer_num           int        Number of P-GNN layers.                 Default is 2.
 
---repeat_num          int        Number of experiments.                  Default is 2.
+--repeat_num          int        Number of experiments.                  Default is 10.
 --epoch_num           int        Number of training epochs.              Default is 2001.
 --epoch_log           int        Frequency of report result.             Default is 10.
 ```
