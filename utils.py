@@ -48,7 +48,7 @@ def get_communities(remove_feature):
         'edge_index': edge_index,
         'feature': feature,
         'positive_edges': np.stack(np.nonzero(label)),
-        'num_nodes': feature.shape[1]
+        'num_nodes': feature.shape[0]
     }
 
     return data
