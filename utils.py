@@ -39,7 +39,7 @@ def get_communities(remove_feature):
                 label[u, v] = 1
 
     if remove_feature:
-        feature = torch.ones((data['feature'].shape[0], 1))
+        feature = torch.ones((n, 1))
     else:
         rand_order = np.random.permutation(n)
         feature = np.identity(n)[:, rand_order]
