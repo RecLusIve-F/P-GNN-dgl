@@ -23,9 +23,9 @@ class PGNN_layer(nn.Module):
             graph.apply_edges(fn.u_mul_e('u_feat', 'sp_dist', 'u_message'))
             graph.apply_edges(fn.v_add_e('v_feat', 'u_message', 'message'))
 
-            messages = graph.edata.pop('message')
-            messages = torch.index_select(messages, 0, torch.as_tensor(anchor_eid, dtype=torch.long).to(feature.device)).\
-                reshape(dists_max.shape[0], dists_max.shape[1], messages.shape[-1])
+            messages = torch.index_select(graph.edata['message'], 0,
+                                          torch.LongTensor(anchor_eid).to(feature.device))
+            messages = messages.reshape(dists_max.shape[0], dists_max.shape[1], messages.shape[-1])
 
             messages = self.act(messages)  # n*m*d
 

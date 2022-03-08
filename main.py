@@ -4,10 +4,8 @@ import torch
 import numpy as np
 import torch.nn as nn
 from model import PGNN
-from tqdm.auto import tqdm
-from dataset import get_dataset
 from sklearn.metrics import roc_auc_score
-from utils import preselect_anchor
+from utils import get_dataset, preselect_anchor
 
 import warnings
 warnings.filterwarnings('ignore')
@@ -29,56 +27,32 @@ def get_loss(p, data, out, loss_func, device):
 
     return loss, auc
 
-def train_model(data, model, args, loss_func, optimizer, device, anchor_sets):
-    graph, anchor_eid, dists_max, edge_weights = anchor_sets
-
-    g_data = {}
-    g = dgl.graph(graph)
-    g.ndata['feat'] = torch.as_tensor(data['feature'], dtype=torch.float)
-    g.edata['sp_dist'] = torch.as_tensor(edge_weights, dtype=torch.float)
-    g_data['graph'], g_data['anchor_eid'], g_data['dists_max'] = g.to(device), anchor_eid, dists_max
-
+def train_model(data, model, loss_func, optimizer, device, g_data):
+    model.train()
     out = model(g_data)
 
     loss = get_loss('train', data, out, loss_func, device)
 
+    optimizer.zero_grad()
     loss.backward()
-    if idx % args.batch_size == args.batch_size - 1:
-        if args.batch_size > 1:
-            for p in model.parameters():
-                if p.grad is not None:
-                    p.grad /= args.batch_size
-        optimizer.step()
-        optimizer.zero_grad()
+    optimizer.step()
+    optimizer.zero_grad()
 
     return g_data
 
-def eval_model(data_list, graph_data_list, model, loss_func, device):
+def eval_model(data, g_data, model, loss_func, device):
     model.eval()
-    loss_train = 0
-    loss_val = 0
-    loss_test = 0
-
-    auc_train = 0
-    auc_val = 0
-    auc_test = 0
-
-    out = model(graph_data_list[idx])
+    out = model(g_data)
 
     # train loss and auc
-    tmp_loss, tmp_auc = get_loss('train', data, out, loss_func, device)
-    loss_train += tmp_loss.cpu().data.numpy()
-    auc_train += tmp_auc
+    tmp_loss, auc_train = get_loss('train', data, out, loss_func, device)
+    loss_train = tmp_loss.cpu().data.numpy()
 
     # val loss and auc
-    tmp_loss, tmp_auc = get_loss('val', data, out, loss_func, device)
-    loss_val += tmp_loss.cpu().data.numpy()
-    auc_val += tmp_auc
+    _, auc_val = get_loss('val', data, out, loss_func, device)
 
     # test loss and auc
-    tmp_loss, tmp_auc = get_loss('test', data, out, loss_func, device)
-    loss_test += tmp_loss.cpu().data.numpy()
-    auc_test += tmp_auc
+    _, auc_test = get_loss('test', data, out, loss_func, device)
 
     return loss_train, auc_train, auc_val, auc_test
 
@@ -101,8 +75,8 @@ def main(args):
     for repeat in range(args.repeat_num):
         data = get_dataset(args)
 
-        # data
-        g, anchor_eid, dists_max, edge_weight = preselect_anchor(data, args)
+        # pre-sample anchor nodes and compute shortest distance values for all epochs
+        g_list, anchor_eid_list, dist_max_list, edge_weight_list = preselect_anchor(data, args)
 
         # model
         model = PGNN(input_dim=data['feature'].shape[1]).to(device)
@@ -114,21 +88,24 @@ def main(args):
         best_auc_val = -1
         best_auc_test = -1
 
-
-
         for epoch in range(args.epoch_num):
             if epoch == 200:
                 for param_group in optimizer.param_groups:
                     param_group['lr'] /= 10
 
-            model.train()
-            optimizer.zero_grad()
+            g = dgl.graph(g_list[epoch])
+            g.ndata['feat'] = torch.tensor(data['feature'])
+            g.edata['sp_dist'] = torch.tensor(edge_weight_list[epoch])
+            g_data = {
+                'graph': g.to(device),
+                'anchor_eid': anchor_eid_list[epoch],
+                'dists_max': dist_max_list[epoch]
+            }
 
-            anchor_sets = [g, anchor_eid, dists_max, edge_weight]
-            graph_data_list = train_model(data, model, args, loss_func, optimizer, device, anchor_sets)
+            train_model(data, model, loss_func, optimizer, device, g_data)
 
             loss_train, auc_train, auc_val, auc_test = eval_model(
-                data_list, graph_data_list, model, loss_func, device)
+                data, g_data, model, loss_func, device)
             if auc_val > best_auc_val:
                 best_auc_val = auc_val
                 best_auc_test = auc_test
