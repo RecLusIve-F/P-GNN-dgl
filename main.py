@@ -33,7 +33,7 @@ def train_model(data, model, loss_func, optimizer, device, g_data):
     model.train()
     out = model(g_data)
 
-    loss = get_loss('train', data, out, loss_func, device)
+    loss = get_loss('train', data, out, loss_func, device, get_auc=False)
 
     optimizer.zero_grad()
     loss.backward()
