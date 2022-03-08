@@ -10,7 +10,7 @@ from utils import get_dataset, preselect_anchor
 import warnings
 warnings.filterwarnings('ignore')
 
-def get_loss(p, data, out, loss_func, device):
+def get_loss(p, data, out, loss_func, device, get_auc=True):
     edge_mask = np.concatenate((data['positive_edges_{}'.format(p)], data['negative_edges_{}'.format(p)]), axis=-1)
 
     nodes_first = torch.index_select(out, 0, torch.from_numpy(edge_mask[0, :]).long().to(out.device))
@@ -23,9 +23,11 @@ def get_loss(p, data, out, loss_func, device):
     label = torch.cat((label_positive, label_negative)).to(device)
     loss = loss_func(pred, label)
 
-    auc = roc_auc_score(label.flatten().cpu().numpy(), torch.sigmoid(pred).flatten().data.cpu().numpy())
-
-    return loss, auc
+    if get_auc:
+        auc = roc_auc_score(label.flatten().cpu().numpy(), torch.sigmoid(pred).flatten().data.cpu().numpy())
+        return loss, auc
+    else:
+        return loss
 
 def train_model(data, model, loss_func, optimizer, device, g_data):
     model.train()
