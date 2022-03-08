@@ -39,14 +39,14 @@ python main.py --task link_pair --inductive
 
 ### Link prediction (Grid-T and Communities-T refer to the transductive learning setting of Grid and Communities)
 
-|             Dataset              |    Grid-T     | Communities-T |     Grid      |  Communities  |      PPI      |
-| :------------------------------: | :-----------: | :-----------: | :-----------: | :-----------: | :-----------: |
-| ROC AUC ( P-GNN-E-2L in Table 1) | 0.834 ± 0.099 | 0.988 ± 0.003 | 0.940 ± 0.027 | 0.985 ± 0.008 | 0.808 ± 0.003 |
-|    ROC AUC (DGL: P-GNN-E-2L)     | 0.657 ± 0.034 | 0.965 ± 0.025 | 0.923 ± 0.027 | 0.991 ± 0.040 |       —       |
+|             Dataset              | Communities-T | Communities   |
+| :------------------------------: | :-----------: | :-----------: |
+| ROC AUC ( P-GNN-E-2L in Table 1) | 0.988 ± 0.003 | 0.985 ± 0.008 |
+|    ROC AUC (DGL: P-GNN-E-2L)     | 0.965 ± 0.025 | 0.991 ± 0.040 |
 
 ### Link pair prediction
 
-|             Dataset              | Communities |     Email     |    Protein    |
-| :------------------------------: | :---------: | :-----------: | :-----------: |
-| ROC AUC ( P-GNN-E-2L in Table 1) | 1.0 ± 0.001 | 0.640 ± 0.029 | 0.631 ± 0.175 |
-|    ROC AUC (DGL: P-GNN-E-2L)     | 1.0 ± 0.001 | 0.654 ± 0.114 |       —       |
+|             Dataset              | Communities |
+| :------------------------------: | :---------: |
+| ROC AUC ( P-GNN-E-2L in Table 1) | 1.0 ± 0.001 |
+|    ROC AUC (DGL: P-GNN-E-2L)     | 1.0 ± 0.001 |

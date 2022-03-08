@@ -94,8 +94,8 @@ def main(args):
                     param_group['lr'] /= 10
 
             g = dgl.graph(g_list[epoch])
-            g.ndata['feat'] = torch.tensor(data['feature'])
-            g.edata['sp_dist'] = torch.tensor(edge_weight_list[epoch])
+            g.ndata['feat'] = torch.FloatTensor(data['feature'])
+            g.edata['sp_dist'] = torch.FloatTensor(edge_weight_list[epoch])
             g_data = {
                 'graph': g.to(device),
                 'anchor_eid': anchor_eid_list[epoch],
