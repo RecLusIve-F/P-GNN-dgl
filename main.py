@@ -99,7 +99,7 @@ def main(args):
     results = []
 
     for repeat in range(args.repeat_num):
-        data = get_dataset(args, remove_feature=args.inductive)
+        data = get_dataset(args)
 
         # data
         g, anchor_eid, dists_max, edge_weight = preselect_anchor(data, args)

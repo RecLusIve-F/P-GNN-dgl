@@ -166,9 +166,9 @@ def precompute_dist_data(edge_index, num_nodes, approximate=0):
                 dists_array[node_i, node_j] = 1 / (dist + 1)
     return dists_array
 
-def get_dataset(args, remove_feature=False):
+def get_dataset(args):
     # Generate graph data
-    data_info = get_communities(remove_feature)
+    data_info = get_communities(args.inductive)
     # Get positive and negative edges
     data = get_pos_neg_edges(data_info, infer_link_positive=True if args.task == 'link' else False)
     # Pre-compute shortest path length
@@ -181,6 +181,8 @@ def get_dataset(args, remove_feature=False):
         dists = precompute_dist_data(data['edge_index'].numpy(), data['num_nodes'],
                                      approximate=args.k_hop_dist)
         data['dists'] = torch.from_numpy(dists).float()
+
+    return data
 
 def get_anchors(n):
     """Get a list of NumPy arrays, each of them is an anchor node set"""
