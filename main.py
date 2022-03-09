@@ -141,7 +141,7 @@ if __name__ == '__main__':
 
     parser.add_argument('--epoch_num', type=int, default=2000)
     parser.add_argument('--repeat_num', type=int, default=10)
-    parser.add_argument('--epoch_log', type=int, default=10)
+    parser.add_argument('--epoch_log', type=int, default=100)
 
     args = parser.parse_args()
     main(args)
