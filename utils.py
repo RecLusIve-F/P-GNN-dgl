@@ -262,8 +262,7 @@ def merge_result(outputs):
     return graphs, anchor_eids, dists_max_list, edge_weights
 
 def preselect_anchor(data, args, num_workers=4):
-    # pool = get_context("spawn").Pool(processes=num_workers)
-    pool = mp.Pool(processes=num_workers)
+    pool = get_context("spawn").Pool(processes=num_workers)
     # Pre-compute anchor sets, a collection of anchor sets per epoch
     anchor_set_ids = [get_anchors(data['num_nodes']) for _ in range(args.epoch_num)]
     interval_size = len(anchor_set_ids) / num_workers
