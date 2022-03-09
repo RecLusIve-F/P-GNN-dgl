@@ -64,16 +64,16 @@ def to_single_directed(edges):
     return edges_new
 
 # each node at least remain in the new graph
-def split_edges(edges, data, non_train_ratio=0.2):
+def split_edges(p, edges, data, non_train_ratio=0.2):
     e = edges.shape[1]
     edges = edges[:, np.random.permutation(e)]
     split1 = int((1 - non_train_ratio) * e)
     split2 = int((1 - non_train_ratio / 2) * e)
 
     data.update({
-        'positive_edges_train': edges[:, :split1],     # 80%
-        'positive_edges_val': edges[:, split1:split2], # 10%
-        'positive_edges_test': edges[:, split2:]       # 10%
+        '{}_edges_train'.format(p): edges[:, :split1],     # 80%
+        '{}_edges_val'.format(p): edges[:, split1:split2], # 10%
+        '{}_edges_test'.format(p): edges[:, split2:]       # 10%
     })
 
 def to_bidirected(edges):
@@ -99,23 +99,26 @@ def get_negative_edges(positive_edges, num_nodes, num_negative_edges):
 def get_pos_neg_edges(data, infer_link_positive=True):
     if infer_link_positive:
         data['positive_edges'] = to_single_directed(data['edge_index'].numpy())
-    split_edges(data['positive_edges'], data)
+    split_edges('positive', data['positive_edges'], data)
 
     # resample edge mask link negative
-    tmp_links = data['positive_edges']
-    data['negative_edges_train'] = get_negative_edges(
-        tmp_links, data['num_nodes'],
-        num_negative_edges=data['positive_edges_train'].shape[1])
-
-    tmp_links = np.concatenate([tmp_links, data['negative_edges_train']], axis=1)
-    data['negative_edges_val'] = get_negative_edges(
-        tmp_links, data['num_nodes'],
-        num_negative_edges=data['positive_edges_val'].shape[1])
-
-    tmp_links = np.concatenate([tmp_links, data['negative_edges_val']], axis=1)
-    data['negative_edges_test'] = get_negative_edges(
-        tmp_links, data['num_nodes'],
-        num_negative_edges=data['positive_edges_test'].shape[1])
+    negative_edges = get_negative_edges(data['positive_edges'], data['num_nodes'],
+                                        num_negative_edges=data['positive_edges'].shape[1])
+    split_edges('negative', negative_edges, data)
+    # tmp_links = data['positive_edges']
+    # data['negative_edges_train'] = get_negative_edges(
+    #     tmp_links, data['num_nodes'],
+    #     num_negative_edges=data['positive_edges_train'].shape[1])
+    #
+    # tmp_links = np.concatenate([tmp_links, data['negative_edges_train']], axis=1)
+    # data['negative_edges_val'] = get_negative_edges(
+    #     tmp_links, data['num_nodes'],
+    #     num_negative_edges=data['positive_edges_val'].shape[1])
+    #
+    # tmp_links = np.concatenate([tmp_links, data['negative_edges_val']], axis=1)
+    # data['negative_edges_test'] = get_negative_edges(
+    #     tmp_links, data['num_nodes'],
+    #     num_negative_edges=data['positive_edges_test'].shape[1])
 
     return data
 
@@ -259,7 +262,8 @@ def merge_result(outputs):
     return graphs, anchor_eids, dists_max_list, edge_weights
 
 def preselect_anchor(data, args, num_workers=4):
-    pool = get_context("spawn").Pool(processes=num_workers)
+    # pool = get_context("spawn").Pool(processes=num_workers)
+    pool = mp.Pool(processes=num_workers)
     # Pre-compute anchor sets, a collection of anchor sets per epoch
     anchor_set_ids = [get_anchors(data['num_nodes']) for _ in range(args.epoch_num)]
     interval_size = len(anchor_set_ids) / num_workers

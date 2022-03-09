@@ -139,7 +139,7 @@ if __name__ == '__main__':
     parser.add_argument('--k_hop_dist', default=-1, type=int,
                         help='K-hop shortest path distance, -1 means exact shortest path.')
 
-    parser.add_argument('--epoch_num', type=int, default=2001)
+    parser.add_argument('--epoch_num', type=int, default=2000)
     parser.add_argument('--repeat_num', type=int, default=10)
     parser.add_argument('--epoch_log', type=int, default=10)
 
