@@ -39,14 +39,14 @@ python main.py --task link_pair --inductive
 
 ### Link prediction (Grid-T and Communities-T refer to the transductive learning setting of Grid and Communities)
 
-|             Dataset              | Communities-T | Communities   |
+|             Dataset              | Communities-T |  Communities  |
 | :------------------------------: | :-----------: | :-----------: |
 | ROC AUC ( P-GNN-E-2L in Table 1) | 0.988 ± 0.003 | 0.985 ± 0.008 |
-|    ROC AUC (DGL: P-GNN-E-2L)     | 0.965 ± 0.025 | 0.991 ± 0.040 |
+|    ROC AUC (DGL: P-GNN-E-2L)     | 0.984 ± 0.010 | 0.991 ± 0.004 |
 
 ### Link pair prediction
 
 |             Dataset              | Communities |
 | :------------------------------: | :---------: |
 | ROC AUC ( P-GNN-E-2L in Table 1) | 1.0 ± 0.001 |
-|    ROC AUC (DGL: P-GNN-E-2L)     | 1.0 ± 0.001 |
+|    ROC AUC (DGL: P-GNN-E-2L)     | 1.0 ± 0.000 |
