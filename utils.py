@@ -6,6 +6,7 @@ from tqdm.auto import tqdm
 import multiprocessing as mp
 from multiprocessing import get_context
 
+
 def get_communities(remove_feature):
     community_size = 20
 
@@ -53,6 +54,7 @@ def get_communities(remove_feature):
 
     return data
 
+
 def to_single_directed(edges):
     edges_new = np.zeros((2, edges.shape[1] // 2), dtype=int)
     j = 0
@@ -63,6 +65,7 @@ def to_single_directed(edges):
 
     return edges_new
 
+
 # each node at least remain in the new graph
 def split_edges(p, edges, data, non_train_ratio=0.2):
     e = edges.shape[1]
@@ -71,13 +74,15 @@ def split_edges(p, edges, data, non_train_ratio=0.2):
     split2 = int((1 - non_train_ratio / 2) * e)
 
     data.update({
-        '{}_edges_train'.format(p): edges[:, :split1],     # 80%
-        '{}_edges_val'.format(p): edges[:, split1:split2], # 10%
-        '{}_edges_test'.format(p): edges[:, split2:]       # 10%
+        '{}_edges_train'.format(p): edges[:, :split1],  # 80%
+        '{}_edges_val'.format(p): edges[:, split1:split2],  # 10%
+        '{}_edges_test'.format(p): edges[:, split2:]  # 10%
     })
+
 
 def to_bidirected(edges):
     return np.concatenate((edges, edges[::-1, :]), axis=-1)
+
 
 def get_negative_edges(positive_edges, num_nodes, num_negative_edges):
     positive_edge_set = []
@@ -96,6 +101,7 @@ def get_negative_edges(positive_edges, num_nodes, num_negative_edges):
 
     return negative_edges
 
+
 def get_pos_neg_edges(data, infer_link_positive=True):
     if infer_link_positive:
         data['positive_edges'] = to_single_directed(data['edge_index'].numpy())
@@ -105,22 +111,9 @@ def get_pos_neg_edges(data, infer_link_positive=True):
     negative_edges = get_negative_edges(data['positive_edges'], data['num_nodes'],
                                         num_negative_edges=data['positive_edges'].shape[1])
     split_edges('negative', negative_edges, data)
-    # tmp_links = data['positive_edges']
-    # data['negative_edges_train'] = get_negative_edges(
-    #     tmp_links, data['num_nodes'],
-    #     num_negative_edges=data['positive_edges_train'].shape[1])
-    #
-    # tmp_links = np.concatenate([tmp_links, data['negative_edges_train']], axis=1)
-    # data['negative_edges_val'] = get_negative_edges(
-    #     tmp_links, data['num_nodes'],
-    #     num_negative_edges=data['positive_edges_val'].shape[1])
-    #
-    # tmp_links = np.concatenate([tmp_links, data['negative_edges_val']], axis=1)
-    # data['negative_edges_test'] = get_negative_edges(
-    #     tmp_links, data['num_nodes'],
-    #     num_negative_edges=data['positive_edges_test'].shape[1])
 
     return data
+
 
 def shortest_path(graph, node_range, cutoff):
     dists_dict = {}
@@ -128,11 +121,13 @@ def shortest_path(graph, node_range, cutoff):
         dists_dict[node] = nx.single_source_shortest_path_length(graph, node, cutoff)
     return dists_dict
 
+
 def merge_dicts(dicts):
     result = {}
     for dictionary in dicts:
         result.update(dictionary)
     return result
+
 
 def all_pairs_shortest_path(graph, cutoff=None, num_workers=4):
     nodes = list(graph.nodes)
@@ -147,6 +142,7 @@ def all_pairs_shortest_path(graph, cutoff=None, num_workers=4):
     pool.close()
     pool.join()
     return dists_dict
+
 
 def precompute_dist_data(edge_index, num_nodes, approximate=0):
     """
@@ -169,6 +165,7 @@ def precompute_dist_data(edge_index, num_nodes, approximate=0):
                 dists_array[node_i, node_j] = 1 / (dist + 1)
     return dists_array
 
+
 def get_dataset(args):
     # Generate graph data
     data_info = get_communities(args.inductive)
@@ -187,6 +184,7 @@ def get_dataset(args):
 
     return data
 
+
 def get_anchors(n):
     """Get a list of NumPy arrays, each of them is an anchor node set"""
     m = int(np.log2(n))
@@ -196,6 +194,7 @@ def get_anchors(n):
         for _ in range(m):
             anchor_set_id.append(np.random.choice(n, size=anchor_size, replace=False))
     return anchor_set_id
+
 
 def get_dist_max(anchor_set_id, dist):
     # N x K, N is number of nodes, K is the number of anchor sets
@@ -211,6 +210,7 @@ def get_dist_max(anchor_set_id, dist):
         dist_max[:, i] = dist_max_temp
         dist_argmax[:, i] = torch.index_select(temp_id, 0, dist_argmax_temp)
     return dist_max, dist_argmax
+
 
 def get_a_graph(dists_max, dists_argmax):
     src = []
@@ -232,6 +232,7 @@ def get_a_graph(dists_max, dists_argmax):
     g = (dst, src)
     return g, anchor_eid, edge_weight
 
+
 def get_graphs(data, anchor_sets):
     graphs = []
     anchor_eids = []
@@ -247,6 +248,7 @@ def get_graphs(data, anchor_sets):
 
     return graphs, anchor_eids, dists_max_list, edge_weights
 
+
 def merge_result(outputs):
     graphs = []
     anchor_eids = []
@@ -260,6 +262,7 @@ def merge_result(outputs):
         edge_weights.extend(edge_weight)
 
     return graphs, anchor_eids, dists_max_list, edge_weights
+
 
 def preselect_anchor(data, args, num_workers=4):
     pool = get_context("spawn").Pool(processes=num_workers)

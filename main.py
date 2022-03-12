@@ -8,7 +8,9 @@ from sklearn.metrics import roc_auc_score
 from utils import get_dataset, preselect_anchor
 
 import warnings
+
 warnings.filterwarnings('ignore')
+
 
 def get_loss(p, data, out, loss_func, device, get_auc=True):
     edge_mask = np.concatenate((data['positive_edges_{}'.format(p)], data['negative_edges_{}'.format(p)]), axis=-1)
@@ -29,6 +31,7 @@ def get_loss(p, data, out, loss_func, device, get_auc=True):
     else:
         return loss
 
+
 def train_model(data, model, loss_func, optimizer, device, g_data):
     model.train()
     out = model(g_data)
@@ -41,6 +44,7 @@ def train_model(data, model, loss_func, optimizer, device, g_data):
     optimizer.zero_grad()
 
     return g_data
+
 
 def eval_model(data, g_data, model, loss_func, device):
     model.eval()
@@ -57,6 +61,7 @@ def eval_model(data, g_data, model, loss_func, device):
     _, auc_test = get_loss('test', data, out, loss_func, device)
 
     return loss_train, auc_train, auc_val, auc_test
+
 
 def main(args):
     # The mean and standard deviation of the experiment results
@@ -128,6 +133,7 @@ def main(args):
     with open('results/{}_{}_{}.txt'.format(['Transductive', 'Inductive'][args.inductive], args.task,
                                             args.k_hop_dist), 'w') as f:
         f.write('{}, {}\n'.format(results_mean, results_std))
+
 
 if __name__ == '__main__':
     from argparse import ArgumentParser

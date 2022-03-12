@@ -3,6 +3,7 @@ import torch.nn as nn
 import dgl.function as fn
 import torch.nn.functional as F
 
+
 class PGNN_layer(nn.Module):
     def __init__(self, input_dim, output_dim):
         super(PGNN_layer, self).__init__()
@@ -33,6 +34,7 @@ class PGNN_layer(nn.Module):
             out_structure = torch.mean(messages, dim=1)  # n*d
 
             return out_position, out_structure
+
 
 class PGNN(nn.Module):
     def __init__(self, input_dim, feature_dim=32, dropout=0.5):
